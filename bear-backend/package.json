@@ -1,0 +1,39 @@
+{
+  "name": "bear-backend",
+  "version": "1.0.0",
+  "description": "Backend API for B.E.A.R. Barangay Emergency Alert Response System",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "client": "cd ../bear-frontend && npm start",
+    "all": "concurrently \"npm run dev\" \"npm run client\""
+  },
+  "keywords": [
+    "backend",
+    "api",
+    "bear-system",
+    "express",
+    "mongoose"
+  ],
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^2.2.0",
+    "concurrently": "^9.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.17.1",
+    "multer": "^2.0.2",
+    "mysql2": "^3.14.3",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

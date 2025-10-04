@@ -1,0 +1,38 @@
+# Apache configuration for source protection
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Block access to source files
+    RewriteRule ^src/ - [F,L]
+    RewriteRule ^components/ - [F,L]
+    RewriteRule ^\.js$ - [F,L]
+    
+    # Block access to build source maps
+    RewriteRule ^static/js/.*\.map$ - [F,L]
+    
+    # Block access to package.json and other config files
+    RewriteRule ^package\.json$ - [F,L]
+    RewriteRule ^webpack\.config\.js$ - [F,L]
+    RewriteRule ^obfuscate-build\.js$ - [F,L]
+    
+    # Serve React app for all other routes
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    # Hide server information
+    Header unset Server
+    Header unset X-Powered-By
+    
+    # Prevent MIME type sniffing
+    Header set X-Content-Type-Options nosniff
+    
+    # Prevent clickjacking
+    Header set X-Frame-Options DENY
+    
+    # XSS protection
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>

@@ -1,0 +1,89 @@
+@import "leaflet/dist/leaflet.css";
+
+/* BEAR System Color Variables */
+:root {
+  --bear-black: #000000;
+  --bear-white: #FFFFFF;
+  --bear-red: #cd0404;
+  --bear-dark-red: #9f0505;
+  --bear-blue: #12212F;
+  --bear-body: #f2e9da;        /* Warm beige background */
+  --bear-semiwhite: #f2f2f2;   /* Light gray */
+  --bear-yellow: #f5c45e;      /* Accent color */
+  --bear-transparent: #00000000;
+  
+  /* Status colors */
+  --bear-status-pending: #FFA500;   /* Orange */
+  --bear-status-approved: #4CAF50;  /* Green */
+  --bear-status-rejected: #F44336;  /* Red */
+  
+  /* Theme mapped colors */
+  --bear-main: #12212F;        /* Blue */
+  --bear-main-light: #f2f2f2;  /* Semiwhite */
+  --bear-main-dark: #000000;   /* Black */
+  --bear-main-dark-variant: #f5c45e; /* Yellow */
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bear-body);
+  color: var(--bear-black);
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* BEAR System Global Styles */
+.bear-primary-button {
+  background-color: var(--bear-red) !important;
+  color: var(--bear-white) !important;
+  border-radius: 12px !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  padding: 8px 16px !important;
+}
+
+.bear-primary-button:hover {
+  background-color: var(--bear-dark-red) !important;
+}
+
+.bear-secondary-button {
+  background-color: var(--bear-white) !important;
+  color: var(--bear-blue) !important;
+  border: 2px solid var(--bear-blue) !important;
+  border-radius: 12px !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  padding: 8px 16px !important;
+}
+
+.bear-secondary-button:hover {
+  background-color: var(--bear-semiwhite) !important;
+}
+
+.bear-card {
+  background-color: var(--bear-white) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid var(--bear-semiwhite) !important;
+}
+
+.bear-text-primary {
+  color: var(--bear-blue) !important;
+  font-weight: bold !important;
+}
+
+.bear-text-secondary {
+  color: var(--bear-black) !important;
+}
+
+.bear-background {
+  background-color: var(--bear-body) !important;
+}
