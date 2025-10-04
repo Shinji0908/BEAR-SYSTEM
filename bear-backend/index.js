@@ -138,14 +138,19 @@ const broadcastToOthers = async (io, senderUserId, event, data) => {
 // Expose helper function to routes
 app.set('broadcastToOthers', broadcastToOthers);
 
-// ✅ Health check endpoint for Railway
+// ✅ Health check endpoint for Railway (simplified - no database dependency)
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.status(200).json({ 
     status: 'OK', 
     message: 'BEAR System API is running',
     timestamp: new Date().toISOString(),
     version: '1.0.0'
   });
+});
+
+// ✅ Simple health check for Railway (even simpler)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
 });
 
 // ✅ Listen on all interfaces (PC + Emulator + LAN)
