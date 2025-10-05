@@ -23,6 +23,24 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ Health check endpoints (MUST be before MongoDB connection for Railway)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
+
+// Test endpoint for Railway debugging
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    message: 'BEAR System Backend is running',
+    timestamp: new Date().toISOString(),
+    status: 'OK'
+  });
+});
+
 // Routes
 app.use('/api/incidents', require('./routes/incidents'));
 app.use("/api/auth", require("./routes/auth"));
@@ -30,11 +48,6 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/verification", require("./routes/verification"));
 app.use("/api/dashboard", require("./routes/dashboard"));
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
-});
 
 // MongoDB connect
 const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/bear-system';
@@ -137,21 +150,6 @@ const broadcastToOthers = async (io, senderUserId, event, data) => {
 
 // Expose helper function to routes
 app.set('broadcastToOthers', broadcastToOthers);
-
-// ✅ Health check endpoint for Railway (simplified - no database dependency)
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    message: 'BEAR System API is running',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
-});
-
-// ✅ Simple health check for Railway (even simpler)
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' });
-});
 
 // ✅ Listen on all interfaces (PC + Emulator + LAN)
 server.listen(PORT, "0.0.0.0", () => {
