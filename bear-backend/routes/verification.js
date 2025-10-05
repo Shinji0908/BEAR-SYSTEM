@@ -578,7 +578,7 @@ router.get("/:userId/details", authenticateToken, async (req, res) => {
       type: doc.type,
       description: doc.description,
       uploadedAt: doc.uploadedAt,
-      url: `http://localhost:5000/uploads/verification/${doc.type}`,
+      url: `${process.env.API_BASE_URL || 'http://localhost:5000'}/uploads/verification/${doc.type}`,
       filename: doc.type
     }));
 
