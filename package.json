@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "start": "cd bear-backend && npm start",
     "dev": "concurrently \"npm run start --prefix bear-backend\" \"npm run start --prefix bear-frontend\""
   },
   "devDependencies": {
