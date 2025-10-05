@@ -2,11 +2,10 @@
 
 /**
  * Railway-specific startup script for BEAR System Backend
- * Handles Railway deployment issues and provides better error handling
+ * Direct startup without child processes for better Railway compatibility
  */
 
-const { spawn } = require('child_process');
-const path = require('path');
+const mongoose = require('mongoose');
 
 console.log('🚂 Starting BEAR System Backend on Railway...');
 console.log('📅 Timestamp:', new Date().toISOString());
@@ -28,20 +27,19 @@ if (!process.env.NODE_ENV) {
   console.log('✅ Set NODE_ENV to production');
 }
 
-if (!process.env.PORT) {
-  process.env.PORT = '5000';
-  console.log('✅ Set PORT to 5000');
-}
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Check if MongoDB URI is set
-if (!process.env.MONGO_URI) {
+if (!MONGO_URI) {
   console.log('❌ MONGO_URI not set! Please configure MongoDB connection in Railway dashboard.');
   console.log('💡 Go to Railway dashboard → Variables → Add MONGO_URI');
   process.exit(1);
 }
 
 // Check if JWT secret is set
-if (!process.env.JWT_SECRET) {
+if (!JWT_SECRET) {
   console.log('❌ JWT_SECRET not set! Please configure JWT secret in Railway dashboard.');
   console.log('💡 Go to Railway dashboard → Variables → Add JWT_SECRET');
   process.exit(1);
@@ -50,32 +48,5 @@ if (!process.env.JWT_SECRET) {
 console.log('✅ Environment variables configured');
 console.log('🚀 Starting backend server...');
 
-// Start the main application
-const child = spawn('node', ['index.js'], {
-  stdio: 'inherit',
-  cwd: __dirname
-});
-
-child.on('error', (error) => {
-  console.error('❌ Failed to start backend:', error);
-  process.exit(1);
-});
-
-child.on('exit', (code) => {
-  console.log(`🔄 Backend process exited with code ${code}`);
-  if (code !== 0) {
-    console.log('❌ Backend failed to start properly');
-    process.exit(code);
-  }
-});
-
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 Received SIGTERM, shutting down gracefully...');
-  child.kill('SIGTERM');
-});
-
-process.on('SIGINT', () => {
-  console.log('🛑 Received SIGINT, shutting down gracefully...');
-  child.kill('SIGINT');
-});
+// Load the main application
+require('./index');
