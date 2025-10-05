@@ -23,22 +23,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Health check endpoints (MUST be before MongoDB connection for Railway)
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' });
-});
-
-// Test endpoint for Railway debugging
+// Basic route handler
 app.get('/', (req, res) => {
-  res.status(200).json({ 
-    message: 'BEAR System Backend is running',
-    timestamp: new Date().toISOString(),
-    status: 'OK'
-  });
+  res.json({ message: 'BEAR System Backend is running', status: 'OK' });
 });
 
 // Routes
@@ -156,5 +143,4 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server (HTTP) on http://0.0.0.0:${PORT}`);
   console.log(`📌 Local: http://localhost:${PORT}`);
   console.log(`📱 Emulator: http://10.0.2.2:${PORT}`);
-  console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
 });

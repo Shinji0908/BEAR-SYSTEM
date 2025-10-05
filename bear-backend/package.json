@@ -4,7 +4,7 @@
   "description": "Backend API for B.E.A.R. Barangay Emergency Alert Response System",
   "main": "index.js",
   "scripts": {
-    "start": "node railway-start.js",
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "client": "cd ../bear-frontend && npm start",
     "all": "concurrently \"npm run dev\" \"npm run client\""
