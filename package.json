@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "cd bear-backend && npm start",
-    "dev": "concurrently \"npm run start --prefix bear-backend\" \"npm run start --prefix bear-frontend\""
+    "start": "cd bear-backend && npm install && npm start",
+    "dev": "concurrently \"npm run start --prefix bear-backend\" \"npm run start --prefix bear-frontend\"",
+    "build": "cd bear-backend && npm install",
+    "railway": "cd bear-backend && npm install && node railway-start.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
