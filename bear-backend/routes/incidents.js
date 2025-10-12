@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require("jsonwebtoken");
 const Incident = require("../models/Incident");
 const User = require("../models/User");
+const Message = require("../models/Message");
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
 
 /**
@@ -62,7 +63,7 @@ router.post("/", async (req, res) => {
       // ✅ Broadcast to all clients
       io.emit("incidentCreated", { incident: populatedIncident });
       
-      console.log(`📢 New incident created by user ${decoded.id} - notified all users`);
+      console.log(`📢 New incident created`);
     }
 
     res.status(201).json({ message: "Incident reported successfully", incident });
@@ -147,7 +148,7 @@ router.put("/:id/status", async (req, res) => {
       // ✅ Broadcast to all clients
       io.emit("incidentStatusUpdated", { incident });
       
-      console.log(`📢 Incident status updated by user ${decoded.id} - notified all users`);
+      console.log(`📢 Incident status updated`);
     }
 
     res.json({ 
@@ -160,6 +161,74 @@ router.put("/:id/status", async (req, res) => {
       return res.status(401).json({ message: "Invalid token" });
     }
     res.status(500).json({ message: "Failed to update incident status" });
+  }
+});
+
+/**
+ * @route   GET /api/incidents/:incidentId/messages
+ * @desc    Get chat messages for a specific incident (Resident or assigned Responder only)
+ */
+router.get("/:incidentId/messages", async (req, res) => {
+  try {
+    // ✅ Verify token
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "No token provided" });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { incidentId } = req.params;
+
+    // ✅ Validate incidentId
+    if (!incidentId) {
+      return res.status(400).json({ message: "Incident ID is required" });
+    }
+
+    // ✅ Check if incident exists
+    const incident = await Incident.findById(incidentId);
+    if (!incident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
+
+    // ✅ Get user info
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // ✅ Authorization: Only the resident who reported the incident or responders can access chat
+    const isReporter = incident.reportedBy.toString() === decoded.id;
+    const isResponder = user.role === "Responder" && user.verificationStatus === "Verified";
+    const isAdmin = user.role === "Admin";
+
+    if (!isReporter && !isResponder && !isAdmin) {
+      return res.status(403).json({ 
+        message: "Access denied. Only the incident reporter, verified responders, or admins can view chat messages." 
+      });
+    }
+
+    // ✅ Get messages for this incident, sorted by timestamp
+    const messages = await Message.find({ incidentId })
+      .sort({ timestamp: 1 }) // Chronological order
+      .lean();
+
+    // ✅ Format messages for response
+    const formattedMessages = messages.map(msg => ({
+      messageId: msg._id,
+      senderId: msg.senderId,
+      senderName: msg.senderName,
+      content: msg.content,
+      timestamp: msg.timestamp
+    }));
+
+    res.json(formattedMessages);
+  } catch (error) {
+    console.error("❌ Get messages error:", error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: "Invalid incident ID format" });
+    }
+    res.status(500).json({ message: "Failed to retrieve messages" });
   }
 });
 
@@ -196,7 +265,7 @@ router.delete("/:id", async (req, res) => {
       // ✅ Broadcast to all clients
       io.emit("incidentDeleted", { incidentId: id, incident });
       
-      console.log(`📢 Incident deleted by user ${decoded.id} - notified all users`);
+      console.log(`📢 Incident deleted`);
     }
 
     res.json({ message: "Incident deleted successfully", incident });

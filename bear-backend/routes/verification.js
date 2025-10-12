@@ -31,29 +31,13 @@ const isUserVerified = (status) => {
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "../uploads/verification");
-console.log("🔍 Upload directory path:", uploadsDir);
-console.log("🔍 Upload directory exists:", fs.existsSync(uploadsDir));
 
 if (!fs.existsSync(uploadsDir)) {
-  console.log("🔧 Creating upload directory...");
   try {
     fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log("✅ Upload directory created successfully");
   } catch (error) {
     console.error("❌ Failed to create upload directory:", error);
   }
-} else {
-  console.log("✅ Upload directory already exists");
-}
-
-// Test write permissions
-try {
-  const testFile = path.join(uploadsDir, "test_write_permissions.txt");
-  fs.writeFileSync(testFile, "test");
-  fs.unlinkSync(testFile);
-  console.log("✅ Write permissions verified");
-} catch (error) {
-  console.error("❌ Write permission test failed:", error);
 }
 
 // Configure multer for file uploads
