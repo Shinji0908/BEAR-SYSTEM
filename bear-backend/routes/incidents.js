@@ -4,27 +4,34 @@ const jwt = require("jsonwebtoken");
 const Incident = require("../models/Incident");
 const User = require("../models/User");
 const Message = require("../models/Message");
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const { validateIncident, validateMessage, handleValidationErrors } = require("../middleware/validation");
+const { 
+  authenticateToken, 
+  requireAuth, 
+  requireAdmin, 
+  requireIncidentAccess,
+  requireAdminOrResponder 
+} = require("../middleware/authorization");
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
 
 /**
  * @route   POST /api/incidents
  * @desc    Report a new incident (Resident/Responder must be logged in)
  */
-router.post("/", async (req, res) => {
+router.post("/", authenticateToken, requireAuth, validateIncident, handleValidationErrors, async (req, res) => {
   try {
-    // ✅ Verify token
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "No token provided" });
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    // ✅ Get user's contact info from Users table
-    const reporter = await User.findById(decoded.id).select("firstName lastName contact email");
+    // Get user's contact info from Users table
+    const reporter = await User.findById(req.user._id).select("firstName lastName contact email");
     if (!reporter) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // ✅ Create new incident - contact comes from user profile, not request body
+    // Create new incident - contact comes from user profile, not request body
     const { name, description, location, type } = req.body;
     if (!name || !location?.latitude || !location?.longitude) {
       return res.status(400).json({ message: "name and location(lat, lng) are required" });
@@ -37,16 +44,14 @@ router.post("/", async (req, res) => {
 
     const incident = new Incident({
       name,
-      description: description || "", // ✅ NEW: Optional description field
-      contact: reporter.contact || "N/A", // ✅ Get contact from user profile
+      description: description || "", 
+      contact: reporter.contact || "N/A", 
       location,
       type: finalType,
-      reportedBy: decoded.id,
+      reportedBy: req.user._id,
     });
 
     await incident.save();
-
-    // 📝 Log the incident creation activity
 
     // 🔔 Emit real-time event
     const io = req.app.get("io");
@@ -62,8 +67,6 @@ router.post("/", async (req, res) => {
         
       // ✅ Broadcast to all clients
       io.emit("incidentCreated", { incident: populatedIncident });
-      
-      console.log(`📢 New incident created`);
     }
 
     res.status(201).json({ message: "Incident reported successfully", incident });
@@ -77,9 +80,35 @@ router.post("/", async (req, res) => {
  * @route   GET /api/incidents
  * @desc    Get all incidents with user info
  */
-router.get("/", async (req, res) => {
+router.get("/", authenticateToken, requireAuth, async (req, res) => {
   try {
-    const incidents = await Incident.find().populate({
+    let query = {};
+    
+    // Non-admin users can only see incidents they reported or are relevant to their role
+    if (req.user.role !== 'Admin') {
+      if (req.user.role === 'Responder' && req.user.responderType) {
+        // Responders see incidents of their type
+        const typeMapping = {
+          'police': ['police', 'barangay'],
+          'fire': ['fire'],
+          'hospital': ['hospital'],
+          'barangay': ['barangay', 'police']
+        };
+        
+        const allowedTypes = typeMapping[req.user.responderType] || [];
+        query = {
+          $or: [
+            { reportedBy: req.user._id }, // Their own incidents
+            { type: { $in: allowedTypes } } // Incidents of their type
+          ]
+        };
+      } else {
+        // Residents only see their own incidents
+        query = { reportedBy: req.user._id };
+      }
+    }
+
+    const incidents = await Incident.find(query).populate({
       path: "reportedBy",
       select: "firstName lastName contact email role",
       strictPopulate: false,
@@ -95,24 +124,8 @@ router.get("/", async (req, res) => {
  * @route   PUT /api/incidents/:id/status
  * @desc    Update incident status (Responders/Admin only)
  */
-router.put("/:id/status", async (req, res) => {
+router.put("/:id/status", authenticateToken, requireAdminOrResponder, requireIncidentAccess, async (req, res) => {
   try {
-    // ✅ Verify token
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "No token provided" });
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    // ✅ Get user info to check role
-    const user = await User.findById(decoded.id).select("role responderType");
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // ✅ Only Responders can update status (Admins use web dashboard)
-    if (user.role !== "Responder") {
-      return res.status(403).json({ message: "Only Responders can update incident status" });
-    }
 
     const { id } = req.params;
     const { status } = req.body;
@@ -140,15 +153,11 @@ router.put("/:id/status", async (req, res) => {
       return res.status(404).json({ message: "Incident not found" });
     }
 
-    // 📝 Log the incident status update activity
-
     // 🔔 Emit real-time event
     const io = req.app.get("io");
     if (io) {
       // ✅ Broadcast to all clients
       io.emit("incidentStatusUpdated", { incident });
-      
-      console.log(`📢 Incident status updated`);
     }
 
     res.json({ 
@@ -236,17 +245,8 @@ router.get("/:incidentId/messages", async (req, res) => {
  * @route   DELETE /api/incidents/:id
  * @desc    Delete an incident (Admin only)
  */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticateToken, requireAdmin, requireIncidentAccess, async (req, res) => {
   try {
-    // ✅ Verify token
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "No token provided" });
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    // ✅ Check if user is admin (you may want to add role checking here)
-    // For now, we'll allow any authenticated user to delete
-    // You can add role checking later: if (decoded.role !== 'admin') return res.status(403).json({ message: "Admin access required" });
 
     const { id } = req.params;
     if (!id) return res.status(400).json({ message: "Incident ID is required" });
@@ -257,15 +257,11 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ message: "Incident not found" });
     }
 
-    // 📝 Log the incident deletion activity
-
     // 🔔 Emit real-time event
     const io = req.app.get("io");
     if (io) {
       // ✅ Broadcast to all clients
       io.emit("incidentDeleted", { incidentId: id, incident });
-      
-      console.log(`📢 Incident deleted`);
     }
 
     res.json({ message: "Incident deleted successfully", incident });
@@ -275,6 +271,31 @@ router.delete("/:id", async (req, res) => {
       return res.status(401).json({ message: "Invalid token" });
     }
     res.status(500).json({ message: "Failed to delete incident" });
+  }
+});
+
+/**
+ * @route   DELETE /api/incidents
+ * @desc    Delete all incidents (Admin only)
+ */
+router.delete("/", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+
+    const result = await Incident.deleteMany({});
+
+    // 🔔 Emit real-time event for mass clear
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("incidentsCleared", { deletedCount: result.deletedCount });
+    }
+
+    return res.json({ message: "All incidents deleted", deletedCount: result.deletedCount });
+  } catch (error) {
+    console.error("❌ Bulk delete error:", error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    return res.status(500).json({ message: "Failed to delete all incidents" });
   }
 });
 

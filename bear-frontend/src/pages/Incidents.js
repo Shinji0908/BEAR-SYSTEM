@@ -18,7 +18,7 @@ import {
   Snackbar,
   Alert
 } from "@mui/material";
-import { ArrowBack, Refresh, Delete } from "@mui/icons-material";
+import { ArrowBack, Refresh, Delete, DeleteSweep } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -49,6 +49,7 @@ function Incidents() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [incidentToDelete, setIncidentToDelete] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const socketRef = useRef(null);
   const navigate = useNavigate();
 
@@ -90,9 +91,6 @@ function Incidents() {
           : Array.isArray(data?.incidents)
           ? data.incidents
           : [];
-        if (!Array.isArray(data)) {
-          console.warn("Unexpected incidents response shape:", data);
-        }
         setIncidents(normalized);
         setLoading(false);
       })
@@ -161,6 +159,33 @@ function Incidents() {
     setIncidentToDelete(null);
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/incidents`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        setIncidents([]);
+        setSelectedIncident(null);
+        setSnackbar({ open: true, message: 'All incidents deleted', severity: 'success' });
+      } else {
+        const text = await response.text();
+        let serverMsg = '';
+        try { serverMsg = JSON.parse(text)?.message || text; } catch { serverMsg = text; }
+        setSnackbar({ open: true, message: `Failed to delete all incidents (HTTP ${response.status}): ${serverMsg || 'Unknown error'}`, severity: 'error' });
+      }
+    } catch (e) {
+      setSnackbar({ open: true, message: 'Network error. Please try again.', severity: 'error' });
+    } finally {
+      setBulkDeleteOpen(false);
+    }
+  };
+
   const handleSnackbarClose = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
@@ -201,6 +226,13 @@ function Incidents() {
       setSelectedIncident((prev) => prev?._id === incidentId ? null : prev);
     });
 
+    // Handle bulk clear from other sessions
+    socket.on("incidentsCleared", ({ deletedCount }) => {
+      setIncidents([]);
+      setSelectedIncident(null);
+      setSnackbar({ open: true, message: `All incidents cleared (${deletedCount})`, severity: 'success' });
+    });
+
     socket.on("disconnect", (reason) => {
       console.log("🔌 Socket disconnected:", reason);
     });
@@ -226,6 +258,9 @@ function Incidents() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "var(--bear-white)" }}>
             🚨 Emergency Incidents
           </Typography>
+          <IconButton color="inherit" onClick={() => setBulkDeleteOpen(true)} disabled={incidents.length === 0} title="Delete all incidents">
+            <DeleteSweep />
+          </IconButton>
           <IconButton color="inherit" onClick={fetchIncidents}>
             <Refresh />
           </IconButton>
@@ -386,6 +421,25 @@ function Incidents() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        aria-labelledby="bulk-delete-dialog-title"
+        aria-describedby="bulk-delete-dialog-description"
+      >
+        <DialogTitle id="bulk-delete-dialog-title">Delete All Incidents</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="bulk-delete-dialog-description">
+            Are you absolutely sure you want to remove ALL incidents? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDeleteOpen(false)} color="primary">Cancel</Button>
+          <Button onClick={handleBulkDelete} color="error" variant="contained">Delete All</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -3,9 +3,20 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Admin = require("../models/Admin");
+const { 
+  authenticateToken, 
+  requireAuth, 
+  requireAdmin, 
+  requireUserManagementAccess,
+  requireOwnership 
+} = require("../middleware/authorization");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
 
 // ✅ Helper function to normalize verification status
 const normalizeVerificationStatus = (status) => {
@@ -92,107 +103,14 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-/**
- * @route   GET /api/users/test
- * @desc    Test endpoint to check users without auth (for debugging)
- */
-router.get("/test", async (req, res) => {
-  try {
-    console.log("🔍 Test endpoint - Fetching users...");
-    const users = await User.find().select("-password").sort({ createdAt: -1 });
-    const admins = await Admin.find().select("-password").sort({ createdAt: -1 });
-    console.log(`📊 Found ${users.length} users and ${admins.length} admins`);
-    
-    // ✅ Apply verification status logic to users
-    const usersWithCorrectedStatus = users.map(user => {
-      const userObj = user.toObject();
-      // Normalize verification status first
-      userObj.verificationStatus = normalizeVerificationStatus(userObj.verificationStatus);
-      
-      // Only set to null if user has never submitted documents AND has no verification status
-      if ((!userObj.verificationDocuments || userObj.verificationDocuments.length === 0) && 
-          (!userObj.verificationStatus || userObj.verificationStatus === "Pending")) {
-        userObj.verificationStatus = null;
-      }
-      return userObj;
-    });
-    
-    res.json({ 
-      message: "Test successful", 
-      userCount: users.length,
-      adminCount: admins.length,
-      users: usersWithCorrectedStatus,
-      admins: admins
-    });
-  } catch (error) {
-    console.error("Error in test endpoint:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
 
 /**
  * @route   GET /api/users
  * @desc    Get all users (Admin only)
  */
-router.get("/", async (req, res) => {
-  // Manual authentication check for debugging
+router.get("/", authenticateToken, requireUserManagementAccess, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ message: "Access token required" });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    console.log("🔍 GET /users - Decoded token:", decoded);
-    
-    // Check User collection first
-    let user = await User.findById(decoded.id).select("-password");
-    console.log("🔍 GET /users - Found in User collection:", user ? `${user.firstName} ${user.lastName} (${user.role})` : "Not found");
-    
-    // If not found in User collection, check Admin collection
-    if (!user) {
-      console.log("🔍 GET /users - Checking Admin collection...");
-      const admin = await Admin.findById(decoded.id).select("-password");
-      if (admin) {
-        console.log("🔍 GET /users - Found admin:", admin.username);
-        user = {
-          _id: admin._id,
-          firstName: admin.username,
-          lastName: "",
-          username: admin.username,
-          email: admin.email,
-          role: "Admin",
-          responderType: null,
-          contact: null,
-          birthday: null,
-          createdAt: admin.createdAt
-        };
-        console.log("🔍 GET /users - Converted admin to user format");
-      }
-    }
-    
-    if (!user) {
-      console.log("❌ GET /users - User not found for ID:", decoded.id);
-      return res.status(401).json({ message: "Invalid token" });
-    }
-
-    if (user.role !== "Admin") {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-
-    req.user = user;
-  } catch (error) {
-    console.error("GET /users - Token verification error:", error);
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
-
-  // Continue with user fetching logic
-  try {
-    console.log("🔍 Fetching users...");
     const users = await User.find().select("-password").sort({ createdAt: -1 });
-    console.log(`📊 Found ${users.length} users`);
     
     // ✅ Apply verification status logic to all users
     const usersWithCorrectedStatus = users.map(user => {
@@ -261,62 +179,9 @@ router.get("/:id", authenticateToken, async (req, res) => {
  * @route   POST /api/users
  * @desc    Create a new user (Admin only)
  */
-router.post("/", async (req, res) => {
-  // Manual authentication check for debugging
+router.post("/", authenticateToken, requireUserManagementAccess, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ message: "Access token required" });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    console.log("🔍 POST /users - Decoded token:", decoded);
-    
-    // Check User collection first
-    let user = await User.findById(decoded.id).select("-password");
-    console.log("🔍 POST /users - Found in User collection:", user ? `${user.firstName} ${user.lastName} (${user.role})` : "Not found");
-    
-    // If not found in User collection, check Admin collection
-    if (!user) {
-      console.log("🔍 POST /users - Checking Admin collection...");
-      const admin = await Admin.findById(decoded.id).select("-password");
-      if (admin) {
-        console.log("🔍 POST /users - Found admin:", admin.username);
-        user = {
-          _id: admin._id,
-          firstName: admin.username,
-          lastName: "",
-          username: admin.username,
-          email: admin.email,
-          role: "Admin",
-          responderType: null,
-          contact: null,
-          birthday: null,
-          createdAt: admin.createdAt
-        };
-        console.log("🔍 POST /users - Converted admin to user format");
-      }
-    }
-    
-    if (!user) {
-      console.log("❌ POST /users - User not found for ID:", decoded.id);
-      return res.status(401).json({ message: "Invalid token" });
-    }
-
-    if (user.role !== "Admin") {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-
-    req.user = user;
-  } catch (error) {
-    console.error("POST /users - Token verification error:", error);
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
-
-  // Continue with user creation logic
-  try {
+    // User creation logic
     const { firstName, lastName, username, email, contact, password, role, responderType, birthday } = req.body;
 
     // Validate required fields

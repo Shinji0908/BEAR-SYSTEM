@@ -2,8 +2,13 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { validateRegistration, validateLogin, handleValidationErrors } = require("../middleware/validation");
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
 
 // ✅ Helper function to normalize verification status
 const normalizeVerificationStatus = (status) => {
@@ -26,11 +31,8 @@ const isUserVerified = (status) => {
  * @route   POST /api/auth/register
  * @desc    Register a new user (Resident or Responder)
  */
-router.post("/register", async (req, res) => {
+router.post("/register", validateRegistration, handleValidationErrors, async (req, res) => {
   try {
-    console.log("🔍 Register endpoint hit - Method:", req.method, "URL:", req.url);
-    console.log("🔍 Headers:", req.headers);
-    console.log("🔍 Body:", req.body);
     
     const { firstName, lastName, username, email, contact, password, role, responderType, birthday } = req.body;
     
@@ -142,84 +144,39 @@ router.post("/register", async (req, res) => {
  * @route   POST /api/auth/login
  * @desc    Login for Residents & Responders
  */
-router.post("/login", async (req, res) => {
+router.post("/login", validateLogin, handleValidationErrors, async (req, res) => {
   try {
-    //  ADDED: Comprehensive logging for debugging
-    console.log("🔍 Login endpoint hit - Method:", req.method, "URL:", req.url);
-    console.log("🔍 Headers:", req.headers);
-    console.log("🔍 Body:", req.body);
     
     const { email, password } = req.body;
     
-    // 🔍 ADDED: Validate required fields with logging
+    // Validate required fields
     if (!email || !password) {
-      console.log("❌ Missing email or password");
       return res.status(400).json({ message: "Email and password are required" });
     }
     
     // ✅ Normalize email (trim and lowercase)
     const normalizedEmail = email.trim().toLowerCase();
-    
-    // 🔍 ADDED: Log normalized email and password length
-    console.log("🔍 Normalized email:", normalizedEmail);
-    console.log("🔍 Password length:", password.length);
-
-    // 🔍 ADDED: Log user search
-    console.log(" Searching for user with email:", normalizedEmail);
     // ✅ FIXED: Use case-insensitive email search
     const user = await User.findOne({ 
       email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } 
     });
     
     if (!user) {
-      console.log("❌ User not found with email:", normalizedEmail);
       return res.status(401).json({ message: "Invalid credentials" });
     }
-    
-    // 🔍 ADDED: Log user details found
-    console.log("✅ User found:", {
-      id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      responderType: user.responderType,
-      verificationStatus: user.verificationStatus,
-      verificationDocuments: user.verificationDocuments ? user.verificationDocuments.length : 0
-    });
 
-    //  ADDED: Log password comparison
-    console.log("🔍 Comparing password...");
     const isMatch = await bcrypt.compare(password, user.password);
     
     if (!isMatch) {
-      console.log("❌ Password mismatch for user:", user.email);
       return res.status(401).json({ message: "Invalid credentials" });
     }
-    
-    // 🔍 ADDED: Log successful password match
-    console.log("✅ Password match confirmed");
 
     // ✅ Generate JWT
-    //  ADDED: Log JWT generation
-    console.log(" Generating JWT token...");
     const token = jwt.sign(
       { id: user._id, role: user.role, responderType: user.responderType },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
-    console.log("✅ JWT token generated");
-
-    // 📝 Log the user login activity
-
-    // ✅ Determine verification status for response
-    // If user hasn't submitted any documents yet, return null
-    // Otherwise, return the actual verification status
-    
-    // 🔍 ADDED: Log verification status processing
-    console.log(" Processing verification status...");
-    console.log("🔍 Raw verificationStatus:", user.verificationStatus);
-    console.log("🔍 verificationDocuments:", user.verificationDocuments);
     
     // ✅ FIXED: Return actual verification status regardless of document existence
     // If user is verified/rejected, return that status even if documents were cleaned up
@@ -228,13 +185,8 @@ router.post("/login", async (req, res) => {
     // Only set to null if user has never submitted documents AND has no verification status
     if ((!user.verificationDocuments || user.verificationDocuments.length === 0) && 
         (!user.verificationStatus || user.verificationStatus === "Pending")) {
-      console.log("🔍 No documents and no verification status, setting to null");
       responseVerificationStatus = null;
-    } else {
-      console.log("🔍 Returning actual verification status:", responseVerificationStatus);
     }
-
-    // 🔍 ADDED: Log response data before sending
     const responseData = {
       message: "Login successful",
       token,

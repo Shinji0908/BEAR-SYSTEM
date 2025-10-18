@@ -299,45 +299,7 @@ function NotificationSystem({ socket }) {
     setCurrentNotification(null);
   };
 
-  // ✅ Test function for resolved chime
-  const testResolvedSound = useCallback(() => {
-    console.log('🧪 Testing resolved chime sound...');
-    playResolvedSound();
-  }, [playResolvedSound]);
 
-  // ✅ Test function for resolved notification
-  const testResolvedNotification = useCallback(() => {
-    console.log('🧪 Testing resolved notification...');
-    const testIncident = {
-      _id: 'test-resolved-' + Date.now(),
-      name: 'Test Resolved Incident',
-      description: 'This is a test resolved incident to check the chime sound',
-      type: 'fire',
-      status: 'Resolved', // This will trigger the resolved chime
-      location: { latitude: 14.5995, longitude: 120.9842 },
-      reportedBy: { firstName: 'Test', lastName: 'User' }
-    };
-    showStatusUpdateNotification(testIncident);
-  }, [showStatusUpdateNotification]);
-
-  // ✅ Expose test functions to window for debugging (only in development)
-  useEffect(() => {
-    // Only expose in development mode
-    if (process.env.NODE_ENV === 'development') {
-      window.testNotification = testNotification;
-      window.testSound = () => {
-        console.log('🔊 Testing emergency sound...');
-        playNotificationSound();
-      };
-      window.testResolvedSound = testResolvedSound;
-      window.testResolvedNotification = testResolvedNotification;
-      console.log('🧪 Test functions available:');
-      console.log('  - window.testNotification() - Test full emergency notification');
-      console.log('  - window.testSound() - Test emergency sound only');
-      console.log('  - window.testResolvedSound() - Test resolved chime only');
-      console.log('  - window.testResolvedNotification() - Test full resolved notification');
-    }
-  }, [testNotification, playNotificationSound, testResolvedSound, testResolvedNotification]);
 
   if (!currentNotification) return null;
 
