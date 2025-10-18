@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:pointerIcon="zoom_in"
+    tools:context=".LandingActivity"
+    android:background="@color/body">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+
+        <TextView
+            android:id="@+id/B.E.A.R"
+            android:layout_width="113dp"
+            android:layout_height="54dp"
+            android:layout_marginStart="50dp"
+            android:layout_marginTop="60dp"
+            android:layout_marginEnd="50dp"
+            android:fontFamily="@font/b_font"
+            android:gravity="center"
+            android:text="@string/b_e_a_r"
+            android:textColor="@color/blue"
+            android:textSize="30sp"
+            app:layout_constraintBottom_toBottomOf="@+id/bearr"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0" />
+
+        <ImageView
+            android:id="@+id/bear"
+            android:layout_width="300dp"
+            android:layout_height="300dp"
+            android:layout_marginTop="80dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/bearr"
+            app:layout_constraintVertical_bias="0.0"
+            app:srcCompat="@drawable/bear" />
+
+        <TextView
+            android:id="@+id/bearr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="116dp"
+            android:fontFamily="@font/r_font"
+            android:text="@string/barangay_194_emergency_alert_amp_response"
+            android:textColor="@color/blue"
+            android:textSize="17sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="MissingConstraints" />
+
+        <Button
+            android:id="@+id/login"
+            android:layout_width="280dp"
+            android:layout_height="50dp"
+            android:background="@drawable/c_button"
+            android:padding="5dp"
+            android:fontFamily="@font/b_font"
+            android:text="@string/log_in"
+            android:textColor="@color/white"
+            android:textSize="30sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.505"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/bear"
+            app:layout_constraintVertical_bias="0.097" />
+
+        <Button
+            android:id="@+id/signup"
+            android:layout_width="280dp"
+            android:layout_height="50dp"
+            android:background="@drawable/c_button"
+            android:text="@string/sign_up"
+            android:fontFamily="@font/b_font"
+            android:textColor="@color/white"
+            android:textSize="30sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.505"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/login"
+            app:layout_constraintVertical_bias="0.136" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</RelativeLayout>

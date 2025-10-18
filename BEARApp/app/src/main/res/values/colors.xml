@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="red">#cd0404</color>
+    <color name="dark_red">#9f0505</color>
+    <color name="blue">#12212F</color>
+    <color name="body">#f2e9da</color>
+    <color name="semiwhite">#f2f2f2</color>
+    <color name="yellow">#f5c45e</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Added Colors -->
+    <color name="status_pending">#FFA500</color> <!-- Orange -->
+    <color name="status_approved">#4CAF50</color> <!-- Green -->
+    <color name="status_rejected">#F44336</color> <!-- Red -->
+    <color name="default_text_color">#FF000000</color> <!-- Black, same as existing 'black' -->
+
+    <!-- === THEME COLORS MAPPED TO YOUR EXISTING COLORS === -->
+    <color name="main">@color/blue</color> 
+    <color name="main_light">@color/semiwhite</color> 
+    <color name="main_dark">@color/black</color> 
+    <color name="main_dark_variant">@color/yellow</color> 
+
+</resources>
