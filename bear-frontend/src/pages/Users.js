@@ -85,7 +85,7 @@ function Users() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      console.log("🔍 Fetching users with token:", token ? "Present" : "Missing");
+      console.log("Fetching users with token:", token ? "Present" : "Missing");
       
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users`, {
         headers: {
@@ -93,28 +93,28 @@ function Users() {
         },
       });
       
-      console.log("📡 Response status:", response.status);
+      console.log("Response status:", response.status);
       
       if (response.ok) {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const data = await response.json();
-          console.log("📊 Received data:", data);
+          console.log("Received data:", data);
           setUsers(data);
         } else {
           const text = await response.text();
-          console.error("❌ Received non-JSON response:", text);
+          console.error("Received non-JSON response:", text);
           throw new Error("Server returned invalid response format");
         }
       } else {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const errorData = await response.json();
-          console.error("❌ Error response:", errorData);
+          console.error("Error response:", errorData);
           throw new Error(errorData.message || "Failed to fetch users");
         } else {
           const text = await response.text();
-          console.error("❌ Error response (non-JSON):", text);
+          console.error("Error response (non-JSON):", text);
           throw new Error(`Server error: ${response.status} ${response.statusText}`);
         }
       }
@@ -251,7 +251,7 @@ const resetForm = () => {
       birthday: user.birthday ? user.birthday.split('T')[0] : "",
       role: user.role || "Resident",
       responderType: user.responderType || "",
-      password: "", // ✅ keep empty when editing
+      password: "", // keep empty when editing
     });
     setOpenDialog(true);
   };
@@ -299,7 +299,7 @@ const resetForm = () => {
     }
   };
 
-  // ✅ Using utility functions from verificationUtils.js
+  // Using utility functions from verificationUtils.js
 
   // Format date
   const formatDate = (dateString) => {

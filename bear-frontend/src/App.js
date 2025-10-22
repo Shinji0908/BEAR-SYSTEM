@@ -35,12 +35,12 @@ function App() {
       const newSocket = io(process.env.REACT_APP_SOCKET_URL || "http://localhost:5000");
       
       newSocket.on("connect", () => {
-        console.log("✅ Socket connected:", newSocket.id);
+        console.log("Socket connected:", newSocket.id);
         newSocket.emit("authenticate", { token });
       });
       
       newSocket.on("disconnect", () => {
-        console.log("🔌 Socket disconnected");
+        console.log("Socket disconnected");
       });
       
       setSocket(newSocket);

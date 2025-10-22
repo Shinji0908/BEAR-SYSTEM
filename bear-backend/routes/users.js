@@ -1,6 +1,5 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Admin = require("../models/Admin");
 const { 
@@ -10,98 +9,13 @@ const {
   requireUserManagementAccess,
   requireOwnership 
 } = require("../middleware/authorization");
+const { normalizeVerificationStatus, formatUserResponse } = require("../utils/helpers");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
-  process.exit(1);
-}
 
-// ✅ Helper function to normalize verification status
-const normalizeVerificationStatus = (status) => {
-  if (!status) return null;
-  const normalized = status.toLowerCase();
-  if (normalized === "approved" || normalized === "verified") {
-    return "Verified"; // Standardize to "Verified"
-  }
-  return status; // Keep original case for other statuses
-};
+// Using centralized authentication middleware
 
-// ✅ Helper function to check if user is verified (handles both "Verified" and "Approved")
-const isUserVerified = (status) => {
-  if (!status) return false;
-  const normalized = status.toLowerCase();
-  return normalized === "verified" || normalized === "approved";
-};
-
-// Middleware to verify JWT token
-const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ message: "Access token required" });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    console.log("🔍 Decoded token:", decoded);
-    console.log("🔍 Looking for user ID:", decoded.id);
-    
-    // First check User collection
-    let user = await User.findById(decoded.id).select("-password");
-    console.log("🔍 Found in User collection:", user ? `${user.firstName} ${user.lastName} (${user.role})` : "Not found");
-    
-    // If not found in User collection, check Admin collection
-    if (!user) {
-      console.log("🔍 Checking Admin collection...");
-      const admin = await Admin.findById(decoded.id).select("-password");
-      if (admin) {
-        console.log("🔍 Found admin:", admin.username);
-        // Convert admin to user format for consistency
-        user = {
-          _id: admin._id,
-          firstName: admin.username,
-          lastName: "",
-          username: admin.username,
-          email: admin.email,
-          role: "Admin",
-          responderType: null,
-          contact: null,
-          birthday: null,
-          createdAt: admin.createdAt
-        };
-        console.log("🔍 Converted admin to user format:", user);
-      }
-    }
-    
-    if (!user) {
-      console.log("❌ User not found in either collection for ID:", decoded.id);
-      console.log("🔍 Available users in User collection:");
-      const allUsers = await User.find().select('_id firstName lastName email role');
-      allUsers.forEach(u => console.log(`  - ${u._id}: ${u.firstName} ${u.lastName} (${u.role})`));
-      console.log("🔍 Available admins in Admin collection:");
-      const allAdmins = await Admin.find().select('_id username email role');
-      allAdmins.forEach(a => console.log(`  - ${a._id}: ${a.username} (${a.role})`));
-      return res.status(401).json({ message: "Invalid token" });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
-};
-
-// Middleware to check if user is admin
-const requireAdmin = (req, res, next) => {
-  if (req.user.role !== "Admin") {
-    return res.status(403).json({ message: "Admin access required" });
-  }
-  next();
-};
+// Using centralized authorization middleware
 
 
 /**

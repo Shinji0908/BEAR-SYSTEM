@@ -1,47 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Admin = require("../models/Admin");
 const Incident = require("../models/Incident");
 const { authenticateToken, requireDashboardAccess } = require("../middleware/authorization");
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
-  process.exit(1);
-}
 
-const authenticateToken = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Try to find user in User collection first
-    let user = await User.findById(decoded.id).select("-password");
-    
-    // If not found in User collection, try Admin collection
-    if (!user) {
-      const admin = await Admin.findById(decoded.id).select("-password");
-      if (admin) {
-        req.user = admin;
-        next();
-        return;
-      }
-    } else {
-      req.user = user;
-      next();
-      return;
-    }
-    
-    return res.status(401).json({ message: "User not found" });
-  } catch (error) {
-    return res.status(401).json({ message: "Invalid token" });
-  }
-};
+// Using centralized authentication middleware
 
 router.get("/stats", authenticateToken, requireDashboardAccess, async (req, res) => {
   try {

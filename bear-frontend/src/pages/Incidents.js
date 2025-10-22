@@ -18,7 +18,23 @@ import {
   Snackbar,
   Alert
 } from "@mui/material";
-import { ArrowBack, Refresh, Delete, DeleteSweep } from "@mui/icons-material";
+import { 
+  ArrowBack, 
+  Refresh, 
+  Delete, 
+  DeleteSweep, 
+  LocalFireDepartment, 
+  LocalHospital, 
+  LocalPolice, 
+  Home,
+  LocationOn,
+  Person,
+  Phone,
+  Description,
+  Warning,
+  Waves,
+  Terrain
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -63,28 +79,58 @@ function Incidents() {
         return { label: "Hospital", color: "success" };
       case "police":
         return { label: "Police", color: "info" };
+      case "earthquake":
+        return { label: "Earthquake", color: "error" };
+      case "flood":
+        return { label: "Flood", color: "primary" };
       default:
         return { label: "Barangay", color: "warning" };
     }
   };
-  const getTypeEmoji = (t) => {
+  const getTypeIcon = (t) => {
     const type = normalizeType(t);
     switch (type) {
       case "fire":
-        return "🔥";
+        return <LocalFireDepartment sx={{ fontSize: 16 }} />;
       case "hospital":
-        return "🏥";
+        return <LocalHospital sx={{ fontSize: 16 }} />;
       case "police":
-        return "🚓";
+        return <LocalPolice sx={{ fontSize: 16 }} />;
+      case "earthquake":
+        return <Terrain sx={{ fontSize: 16 }} />;
+      case "flood":
+        return <Waves sx={{ fontSize: 16 }} />;
       default:
-        return "🏘️";
+        return <Home sx={{ fontSize: 16 }} />;
     }
+  };
+
+  // Decode HTML entities
+  const decodeHTMLEntities = (text) => {
+    if (!text) return text;
+    const textArea = document.createElement('textarea');
+    textArea.innerHTML = text;
+    return textArea.value;
   };
 
   const fetchIncidents = () => {
     setLoading(true);
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/incidents`)
-      .then((res) => res.json())
+    const token = localStorage.getItem('token');
+    
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/incidents`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then(errorData => {
+            throw new Error(`HTTP ${res.status}: ${errorData.message || 'Failed to fetch incidents'}`);
+          });
+        }
+        return res.json();
+      })
       .then((data) => {
         const normalized = Array.isArray(data)
           ? data
@@ -97,6 +143,11 @@ function Incidents() {
       .catch((err) => {
         console.error("Error fetching incidents:", err);
         setLoading(false);
+        setSnackbar({
+          open: true,
+          message: `Failed to fetch incidents: ${err.message}`,
+          severity: "error"
+        });
       });
   };
 
@@ -200,7 +251,7 @@ function Incidents() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ Socket connected", socket.id);
+      console.log("Socket connected", socket.id);
     });
 
     // New incident arrives in real-time
@@ -234,7 +285,7 @@ function Incidents() {
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("🔌 Socket disconnected:", reason);
+      console.log("Socket disconnected:", reason);
     });
 
     return () => {
@@ -255,8 +306,8 @@ function Incidents() {
           >
             <ArrowBack />
           </IconButton>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "var(--bear-white)" }}>
-            🚨 Emergency Incidents
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "var(--bear-white)", display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Warning /> Emergency Incidents
           </Typography>
           <IconButton color="inherit" onClick={() => setBulkDeleteOpen(true)} disabled={incidents.length === 0} title="Delete all incidents">
             <DeleteSweep />
@@ -310,16 +361,24 @@ function Incidents() {
                 }
               >
                 <ListItemText
-                  primary={`${incident.name}${incident.reportedBy ? ` (${incident.reportedBy.firstName || 'Unknown'} ${incident.reportedBy.lastName || 'User'})` : ` (${incident.contact})`}${incident.status ? ` • ${incident.status}` : ""}`}
+                  primary={`${decodeHTMLEntities(incident.name)}${incident.status ? ` • ${incident.status}` : ""}`}
                   secondary={
                     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Chip size="small" variant="filled" {...getTypeChipProps(incident.type)} />
-                        <span>{`📍 ${incident.location?.latitude || 'N/A'}, ${incident.location?.longitude || 'N/A'}`}</span>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <LocationOn sx={{ fontSize: 14 }} />
+                          <span>{`${incident.location?.latitude || 'N/A'}, ${incident.location?.longitude || 'N/A'}`}</span>
+                        </Box>
                       </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Person sx={{ fontSize: 14 }} />
+                        {incident.reportedBy ? `${incident.reportedBy.firstName || 'Unknown'} ${incident.reportedBy.lastName || 'User'}` : incident.contact || 'N/A'}
+                      </Typography>
                       {incident.description && (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mt: 0.5 }}>
-                          📝 {incident.description.length > 80 ? incident.description.substring(0, 80) + '...' : incident.description}
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mt: 0.5, display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                          <Description sx={{ fontSize: 14, mt: 0.2 }} />
+                          {decodeHTMLEntities(incident.description).length > 80 ? decodeHTMLEntities(incident.description).substring(0, 80) + '...' : decodeHTMLEntities(incident.description)}
                         </Typography>
                       )}
                     </Box>
@@ -349,31 +408,41 @@ function Incidents() {
                 ]}
               >
                 <Popup>
-                  <strong>{getTypeEmoji(incident.type)} {incident.name}</strong>
-                  <br />
-                  Type: {getTypeChipProps(incident.type).label}
-                  <br />
-                  {incident.reportedBy ? (
-                    <>
-                      👤 {incident.reportedBy.firstName || 'Unknown'} {incident.reportedBy.lastName || 'User'}
-                      <br />
-                      📞 {incident.reportedBy.contact || incident.contact}
-                    </>
-                  ) : (
-                    <>📞 {incident.contact}</>
-                  )}
-                  {incident.description && (
-                    <>
-                      <br />
-                      📝 {incident.description}
-                    </>
-                  )}
-                  {incident.status ? (
-                    <>
-                      <br />
-                      Status: {incident.status}
-                    </>
-                  ) : null}
+                  <Box sx={{ minWidth: 200 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                      {getTypeIcon(incident.type)}
+                      <strong>{decodeHTMLEntities(incident.name)}</strong>
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}>
+                      <strong>Type:</strong> {getTypeChipProps(incident.type).label}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                      <Person sx={{ fontSize: 14 }} />
+                      <Typography variant="body2">
+                        {incident.reportedBy 
+                          ? `${incident.reportedBy.firstName || 'Unknown'} ${incident.reportedBy.lastName || 'User'}`
+                          : 'Unknown'
+                        }
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                      <Phone sx={{ fontSize: 14 }} />
+                      <Typography variant="body2">
+                        {incident.reportedBy?.contact || incident.contact || 'N/A'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mb: 0.5 }}>
+                      <Description sx={{ fontSize: 14, mt: 0.3 }} />
+                      <Typography variant="body2">
+                        {incident.description ? decodeHTMLEntities(incident.description) : 'No description provided'}
+                      </Typography>
+                    </Box>
+                    {incident.status && (
+                      <Typography variant="body2">
+                        <strong>Status:</strong> {incident.status}
+                      </Typography>
+                    )}
+                  </Box>
                 </Popup>
               </Marker>
             ))}

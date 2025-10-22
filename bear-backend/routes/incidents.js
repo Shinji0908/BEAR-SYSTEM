@@ -12,11 +12,7 @@ const {
   requireIncidentAccess,
   requireAdminOrResponder 
 } = require("../middleware/authorization");
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
-  process.exit(1);
-}
+const { JWT_SECRET } = require("../utils/helpers");
 
 /**
  * @route   POST /api/incidents
@@ -24,23 +20,40 @@ if (!JWT_SECRET) {
  */
 router.post("/", authenticateToken, requireAuth, validateIncident, handleValidationErrors, async (req, res) => {
   try {
+    console.log("New incident report received");
+    console.log("Incident details:", {
+      name: req.body.name,
+      type: req.body.type,
+      description: req.body.description,
+      location: req.body.location
+    });
 
     // Get user's contact info from Users table
     const reporter = await User.findById(req.user._id).select("firstName lastName contact email");
     if (!reporter) {
+      console.log("Reporter not found for ID:", req.user._id);
       return res.status(404).json({ message: "User not found" });
     }
+
+    console.log("Reporter:", {
+      name: `${reporter.firstName} ${reporter.lastName}`,
+      email: reporter.email,
+      contact: reporter.contact
+    });
 
     // Create new incident - contact comes from user profile, not request body
     const { name, description, location, type } = req.body;
     if (!name || !location?.latitude || !location?.longitude) {
+      console.log("Missing required fields:", { name: !!name, location: !!location });
       return res.status(400).json({ message: "name and location(lat, lng) are required" });
     }
 
     // Normalize and validate type
-    const allowedTypes = ["barangay", "fire", "hospital", "police"];
+    const allowedTypes = ["barangay", "fire", "hospital", "police", "earthquake", "flood"];
     const normalizedType = typeof type === "string" ? type.toLowerCase() : undefined;
     const finalType = allowedTypes.includes(normalizedType) ? normalizedType : undefined; // model default applies
+
+    console.log("Incident type validation:", { original: type, normalized: normalizedType, final: finalType });
 
     const incident = new Incident({
       name,
@@ -52,10 +65,18 @@ router.post("/", authenticateToken, requireAuth, validateIncident, handleValidat
     });
 
     await incident.save();
+    console.log("Incident saved successfully:", {
+      id: incident._id,
+      name: incident.name,
+      type: incident.type,
+      status: incident.status,
+      reportedBy: incident.reportedBy
+    });
 
-    // 🔔 Emit real-time event
+    // Emit real-time event
     const io = req.app.get("io");
     if (io) {
+      console.log("Broadcasting incident to connected clients...");
       // Populate the incident with reporter details
       const populatedIncident = await Incident.findById(incident._id)
         .populate({
@@ -65,13 +86,16 @@ router.post("/", authenticateToken, requireAuth, validateIncident, handleValidat
         })
         .lean();
         
-      // ✅ Broadcast to all clients
+      // Broadcast to all clients
       io.emit("incidentCreated", { incident: populatedIncident });
+      console.log("Incident broadcasted to all connected clients");
+    } else {
+      console.log("Socket.IO not available - incident not broadcasted");
     }
 
     res.status(201).json({ message: "Incident reported successfully", incident });
   } catch (error) {
-    console.error("❌ Save error:", error);
+    console.error("Save error:", error);
     res.status(500).json({ message: "Failed to report incident" });
   }
 });
@@ -89,10 +113,10 @@ router.get("/", authenticateToken, requireAuth, async (req, res) => {
       if (req.user.role === 'Responder' && req.user.responderType) {
         // Responders see incidents of their type
         const typeMapping = {
-          'police': ['police', 'barangay'],
-          'fire': ['fire'],
-          'hospital': ['hospital'],
-          'barangay': ['barangay', 'police']
+          'police': ['police', 'barangay', 'earthquake', 'flood'],
+          'fire': ['fire', 'earthquake', 'flood'],
+          'hospital': ['hospital', 'earthquake', 'flood'],
+          'barangay': ['barangay', 'police', 'earthquake', 'flood']
         };
         
         const allowedTypes = typeMapping[req.user.responderType] || [];
@@ -115,7 +139,7 @@ router.get("/", authenticateToken, requireAuth, async (req, res) => {
     }).lean();
     res.json(incidents);
   } catch (err) {
-    console.error("❌ Error:", err);
+    console.error("Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -130,7 +154,7 @@ router.put("/:id/status", authenticateToken, requireAdminOrResponder, requireInc
     const { id } = req.params;
     const { status } = req.body;
 
-    // ✅ Validate status
+    // Validate status
     const allowedStatuses = ["Pending", "In Progress", "Resolved"];
     if (!status || !allowedStatuses.includes(status)) {
       return res.status(400).json({ 
@@ -138,7 +162,7 @@ router.put("/:id/status", authenticateToken, requireAdminOrResponder, requireInc
       });
     }
 
-    // ✅ Find and update the incident
+    // Find and update the incident
     const incident = await Incident.findByIdAndUpdate(
       id,
       { status },
@@ -153,10 +177,10 @@ router.put("/:id/status", authenticateToken, requireAdminOrResponder, requireInc
       return res.status(404).json({ message: "Incident not found" });
     }
 
-    // 🔔 Emit real-time event
+    // Emit real-time event
     const io = req.app.get("io");
     if (io) {
-      // ✅ Broadcast to all clients
+      // Broadcast to all clients
       io.emit("incidentStatusUpdated", { incident });
     }
 
@@ -165,7 +189,7 @@ router.put("/:id/status", authenticateToken, requireAdminOrResponder, requireInc
       incident 
     });
   } catch (error) {
-    console.error("❌ Status update error:", error);
+    console.error("Status update error:", error);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: "Invalid token" });
     }
@@ -179,31 +203,31 @@ router.put("/:id/status", authenticateToken, requireAdminOrResponder, requireInc
  */
 router.get("/:incidentId/messages", async (req, res) => {
   try {
-    // ✅ Verify token
+    // Verify token
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "No token provided" });
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const { incidentId } = req.params;
 
-    // ✅ Validate incidentId
+    // Validate incidentId
     if (!incidentId) {
       return res.status(400).json({ message: "Incident ID is required" });
     }
 
-    // ✅ Check if incident exists
+    // Check if incident exists
     const incident = await Incident.findById(incidentId);
     if (!incident) {
       return res.status(404).json({ message: "Incident not found" });
     }
 
-    // ✅ Get user info
+    // Get user info
     const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // ✅ Authorization: Only the resident who reported the incident or responders can access chat
+    // Authorization: Only the resident who reported the incident or responders can access chat
     const isReporter = incident.reportedBy.toString() === decoded.id;
     const isResponder = user.role === "Responder" && user.verificationStatus === "Verified";
     const isAdmin = user.role === "Admin";
@@ -214,12 +238,12 @@ router.get("/:incidentId/messages", async (req, res) => {
       });
     }
 
-    // ✅ Get messages for this incident, sorted by timestamp
+    // Get messages for this incident, sorted by timestamp
     const messages = await Message.find({ incidentId })
       .sort({ timestamp: 1 }) // Chronological order
       .lean();
 
-    // ✅ Format messages for response
+    // Format messages for response
     const formattedMessages = messages.map(msg => ({
       messageId: msg._id,
       senderId: msg.senderId,
@@ -230,7 +254,7 @@ router.get("/:incidentId/messages", async (req, res) => {
 
     res.json(formattedMessages);
   } catch (error) {
-    console.error("❌ Get messages error:", error);
+    console.error("Get messages error:", error);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: "Invalid token" });
     }
@@ -257,16 +281,16 @@ router.delete("/:id", authenticateToken, requireAdmin, requireIncidentAccess, as
       return res.status(404).json({ message: "Incident not found" });
     }
 
-    // 🔔 Emit real-time event
+    // Emit real-time event
     const io = req.app.get("io");
     if (io) {
-      // ✅ Broadcast to all clients
+      // Broadcast to all clients
       io.emit("incidentDeleted", { incidentId: id, incident });
     }
 
     res.json({ message: "Incident deleted successfully", incident });
   } catch (error) {
-    console.error("❌ Delete error:", error);
+    console.error("Delete error:", error);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: "Invalid token" });
     }
@@ -283,7 +307,7 @@ router.delete("/", authenticateToken, requireAdmin, async (req, res) => {
 
     const result = await Incident.deleteMany({});
 
-    // 🔔 Emit real-time event for mass clear
+    // Emit real-time event for mass clear
     const io = req.app.get("io");
     if (io) {
       io.emit("incidentsCleared", { deletedCount: result.deletedCount });
@@ -291,7 +315,7 @@ router.delete("/", authenticateToken, requireAdmin, async (req, res) => {
 
     return res.json({ message: "All incidents deleted", deletedCount: result.deletedCount });
   } catch (error) {
-    console.error("❌ Bulk delete error:", error);
+    console.error("Bulk delete error:", error);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: "Invalid token" });
     }

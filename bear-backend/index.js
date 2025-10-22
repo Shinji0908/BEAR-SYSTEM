@@ -8,12 +8,7 @@ require('dotenv').config();
 const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-// JWT Secret - MUST be set in environment variables
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
-  process.exit(1);
-}
+const { JWT_SECRET } = require('./utils/helpers');
 
 // Import models for chat functionality
 const Message = require('./models/Message');
@@ -73,7 +68,7 @@ app.use(cors({
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log('🚫 CORS blocked origin:', origin);
+      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -120,10 +115,10 @@ const mongoUri = process.env.MONGO_URI || `mongodb://${MONGODB_IP}:27017/bear-sy
 
 mongoose.connect(mongoUri)
     .then(() => {
-        console.log('✅ MongoDB Connected successfully');
+        console.log('MongoDB Connected successfully');
     })
     .catch(err => {
-        console.error('❌ MongoDB Connection Error:', err.message);
+        console.error('MongoDB Connection Error:', err.message);
     });
 
 const PORT = process.env.PORT || 5000;
@@ -151,18 +146,18 @@ const io = new Server(server, {
   }
 });
 
-// ✅ Store user-to-socket mapping for filtering self-notifications
+// Store user-to-socket mapping for filtering self-notifications
 const userSocketMap = new Map(); // userId -> socketId
 const socketUserMap = new Map(); // socketId -> userId
 
 // Expose io to routes
 app.set('io', io);
 
-// ✅ Enhanced Socket.IO connection with authentication
+// Enhanced Socket.IO connection with authentication
 io.on('connection', (socket) => {
-  console.log(`🔌 Client connected: ${socket.id} (${socket.conn.transport.name})`);
+  console.log(`Client connected: ${socket.id} (${socket.conn.transport.name})`);
 
-  // ✅ Authenticate socket connection
+  // Authenticate socket connection
   socket.on('authenticate', ({ token }) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
@@ -172,10 +167,10 @@ io.on('connection', (socket) => {
       userSocketMap.set(userId, socket.id);
       socketUserMap.set(socket.id, userId);
       
-      console.log(`✅ User authenticated: ${userId}`);
+      console.log(`User authenticated: ${userId}`);
       socket.emit('authenticated', { userId });
     } catch (error) {
-      console.log(`❌ Socket authentication failed: ${error.message}`);
+      console.log(`Socket authentication failed: ${error.message}`);
       socket.emit('authentication_failed', { message: 'Invalid token' });
     }
   });
@@ -184,7 +179,7 @@ io.on('connection', (socket) => {
     if (!incidentId) return;
     const room = `incident:${incidentId}`;
     socket.join(room);
-    console.log(`👥 User joined incident room: ${incidentId}`);
+    console.log(`User joined incident room: ${incidentId}`);
     socket.emit('joinedIncident', { incidentId });
   });
 
@@ -192,10 +187,10 @@ io.on('connection', (socket) => {
     if (!incidentId) return;
     const room = `incident:${incidentId}`;
     socket.leave(room);
-    console.log(`👋 User left incident room: ${incidentId}`);
+    console.log(`User left incident room: ${incidentId}`);
   });
 
-  // ✅ Chat functionality handlers
+  // Chat functionality handlers
   socket.on('joinChat', async ({ incidentId }) => {
     try {
       if (!incidentId) return;
@@ -206,7 +201,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // ✅ Verify user has access to this incident's chat
+      // Verify user has access to this incident's chat
       const incident = await Incident.findById(incidentId);
       if (!incident) {
         socket.emit('error', { message: 'Incident not found' });
@@ -219,7 +214,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // ✅ Authorization check
+      // Authorization check
       const isReporter = incident.reportedBy.toString() === userId;
       const isResponder = user.role === "Responder" && user.verificationStatus === "Verified";
       const isAdmin = user.role === "Admin";
@@ -229,12 +224,12 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // ✅ Join the chat room
+      // Join the chat room
       socket.join(`chat:${incidentId}`);
-      console.log(`💬 User joined chat room: ${incidentId}`);
+      console.log(`User joined chat room: ${incidentId}`);
       socket.emit('joinedChat', { incidentId });
     } catch (error) {
-      console.error('❌ Error joining chat:', error);
+      console.error('Error joining chat:', error);
       socket.emit('error', { message: 'Failed to join chat' });
     }
   });
@@ -242,7 +237,7 @@ io.on('connection', (socket) => {
   socket.on('leaveChat', ({ incidentId }) => {
     if (!incidentId) return;
     socket.leave(`chat:${incidentId}`);
-    console.log(`👋 User left chat room: ${incidentId}`);
+    console.log(`User left chat room: ${incidentId}`);
   });
 
   socket.on('sendMessage', async ({ incidentId, content }) => {
@@ -258,13 +253,13 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // ✅ Validate message length
+      // Validate message length
       if (content.length > 1000) {
         socket.emit('error', { message: 'Message too long (max 1000 characters)' });
         return;
       }
 
-      // ✅ Verify user has access to this incident's chat
+      // Verify user has access to this incident's chat
       const incident = await Incident.findById(incidentId);
       if (!incident) {
         socket.emit('error', { message: 'Incident not found' });
@@ -277,7 +272,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // ✅ Authorization check
+      // Authorization check
       const isReporter = incident.reportedBy.toString() === userId;
       const isResponder = user.role === "Responder" && user.verificationStatus === "Verified";
       const isAdmin = user.role === "Admin";
@@ -287,7 +282,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // ✅ Create new message
+      // Create new message
       const senderName = `${user.firstName} ${user.lastName}`;
       const newMessage = new Message({
         incidentId,
@@ -298,7 +293,7 @@ io.on('connection', (socket) => {
 
       await newMessage.save();
 
-      // ✅ Format message for broadcasting
+      // Format message for broadcasting
       const messageData = {
         messageId: newMessage._id,
         senderId: userId,
@@ -307,12 +302,12 @@ io.on('connection', (socket) => {
         timestamp: newMessage.timestamp
       };
 
-      // ✅ Broadcast message to all users in the chat room
+      // Broadcast message to all users in the chat room
       io.to(`chat:${incidentId}`).emit('receiveMessage', messageData);
       
-      console.log(`💬 Message sent in chat: ${incidentId}`);
+      console.log(`Message sent in chat: ${incidentId}`);
     } catch (error) {
-      console.error('❌ Error sending message:', error);
+      console.error('Error sending message:', error);
       socket.emit('error', { message: 'Failed to send message' });
     }
   });
@@ -322,17 +317,17 @@ io.on('connection', (socket) => {
     if (userId) {
       userSocketMap.delete(userId);
       socketUserMap.delete(socket.id);
-      console.log(`🔌 User disconnected: ${userId}`);
+      console.log(`User disconnected: ${userId}`);
     }
   });
 
   // Handle connection errors (minimal logging)
   socket.on('error', (error) => {
-    console.error(`❌ Socket error:`, error.message);
+    console.error(`Socket error:`, error.message);
   });
 });
 
-// ✅ Helper function to broadcast to all except sender
+// Helper function to broadcast to all except sender
 const broadcastToOthers = async (io, senderUserId, event, data) => {
   const senderSocketId = userSocketMap.get(senderUserId);
   
@@ -346,13 +341,13 @@ const broadcastToOthers = async (io, senderUserId, event, data) => {
     }
   });
   
-  console.log(`📢 Broadcasted ${event} to ${allSockets.length - 1} clients`);
+  console.log(`Broadcasted ${event} to ${allSockets.length - 1} clients`);
 };
 
 // Expose helper function to routes
 app.set('broadcastToOthers', broadcastToOthers);
 
-// ✅ Listen on all interfaces (PC + Emulator + LAN)
+// Listen on all interfaces (PC + Emulator + LAN)
 server.listen(PORT, "0.0.0.0", () => {
   const os = require('os');
   const networkInterfaces = os.networkInterfaces();
@@ -370,8 +365,8 @@ server.listen(PORT, "0.0.0.0", () => {
     if (serverIP !== 'localhost') break;
   }
   
-  console.log(`🚀 Server (HTTP) on http://0.0.0.0:${PORT}`);
-  console.log(`📌 Local: http://localhost:${PORT}`);
-  console.log(`🌐 Network: http://${serverIP}:${PORT}`);
-  console.log(`📱 Emulator: http://10.0.2.2:${PORT}`);
+  console.log(`Server (HTTP) on http://0.0.0.0:${PORT}`);
+  console.log(`Local: http://localhost:${PORT}`);
+  console.log(`Network: http://${serverIP}:${PORT}`);
+  console.log(`Emulator: http://10.0.2.2:${PORT}`);
 });

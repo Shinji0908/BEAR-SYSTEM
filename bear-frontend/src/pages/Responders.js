@@ -312,7 +312,7 @@ function Responders() {
     setSnackbar({ open: true, message, severity });
   };
 
-  // ✅ Using utility functions from verificationUtils.js
+  // Using utility functions from verificationUtils.js
 
   // Get responder type color
   const getResponderTypeColor = (type) => {

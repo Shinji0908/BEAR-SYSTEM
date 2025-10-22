@@ -14,7 +14,9 @@ import {
   LocalFireDepartment, 
   LocalHospital, 
   LocalPolice, 
-  Home 
+  Home,
+  Waves,
+  Terrain
 } from '@mui/icons-material';
 
 function NotificationSystem({ socket }) {
@@ -29,6 +31,10 @@ function NotificationSystem({ socket }) {
         return <LocalHospital sx={{ fontSize: 20 }} />;
       case 'police':
         return <LocalPolice sx={{ fontSize: 20 }} />;
+      case 'earthquake':
+        return <Terrain sx={{ fontSize: 20 }} />;
+      case 'flood':
+        return <Waves sx={{ fontSize: 20 }} />;
       default:
         return <Home sx={{ fontSize: 20 }} />;
     }
@@ -42,18 +48,22 @@ function NotificationSystem({ socket }) {
         return 'success';
       case 'police':
         return 'info';
+      case 'earthquake':
+        return 'error';
+      case 'flood':
+        return 'info';
       default:
         return 'warning';
     }
   };
 
-  // ✅ Audio elements for custom notification sounds
+  // Audio elements for custom notification sounds
   const [audioElement, setAudioElement] = useState(null);
   const [resolvedAudioElement, setResolvedAudioElement] = useState(null);
 
-  // ✅ Initialize audio elements on component mount
+  // Initialize audio elements on component mount
   useEffect(() => {
-    console.log('🎵 Initializing audio elements...');
+    console.log('Initializing audio elements...');
     
     // Initialize emergency alert sound
     const audio = new Audio('/sounds/bear-alert.mp3');
@@ -65,10 +75,10 @@ function NotificationSystem({ socket }) {
     resolvedAudio.preload = 'auto';
     resolvedAudio.volume = 0.7; // Slightly lower volume for chime
     
-    // ✅ Add comprehensive error handling for emergency audio loading
+    // Add comprehensive error handling for emergency audio loading
     audio.addEventListener('error', (e) => {
-      console.error('❌ Emergency audio loading error:', e);
-      console.error('❌ Error details:', {
+      console.error('Emergency audio loading error:', e);
+      console.error('Error details:', {
         code: e.target.error?.code,
         message: e.target.error?.message,
         networkState: e.target.networkState,
@@ -77,41 +87,41 @@ function NotificationSystem({ socket }) {
     });
     
     audio.addEventListener('canplaythrough', () => {
-      console.log('✅ Emergency alert sound loaded successfully');
+      console.log('Emergency alert sound loaded successfully');
     });
     
-    // ✅ Add error handling for resolved audio loading
+    // Add error handling for resolved audio loading
     resolvedAudio.addEventListener('error', (e) => {
-      console.error('❌ Resolved chime loading error:', e);
+      console.error('Resolved chime loading error:', e);
     });
     
     resolvedAudio.addEventListener('canplaythrough', () => {
-      console.log('✅ Resolved chime sound loaded successfully');
+      console.log('Resolved chime sound loaded successfully');
     });
     
     // Test if files exist
     fetch('/sounds/bear-alert.mp3', { method: 'HEAD' })
       .then(response => {
         if (response.ok) {
-          console.log('✅ Emergency sound file exists and is accessible');
+          console.log('Emergency sound file exists and is accessible');
         } else {
-          console.error('❌ Emergency sound file not found:', response.status);
+          console.error('Emergency sound file not found:', response.status);
         }
       })
       .catch(error => {
-        console.error('❌ Error checking emergency sound file:', error);
+        console.error('Error checking emergency sound file:', error);
       });
       
     fetch('/sounds/resolved_chime.mp3', { method: 'HEAD' })
       .then(response => {
         if (response.ok) {
-          console.log('✅ Resolved chime file exists and is accessible');
+          console.log('Resolved chime file exists and is accessible');
         } else {
-          console.error('❌ Resolved chime file not found:', response.status);
+          console.error('Resolved chime file not found:', response.status);
         }
       })
       .catch(error => {
-        console.error('❌ Error checking resolved chime file:', error);
+        console.error('Error checking resolved chime file:', error);
       });
     
     setAudioElement(audio);
@@ -130,13 +140,13 @@ function NotificationSystem({ socket }) {
     };
   }, []);
 
-  // ✅ Enhanced sound playing with custom audio file ONLY
+  // Enhanced sound playing with custom audio file ONLY
   const playNotificationSound = useCallback(() => {
-    console.log('🔊 Attempting to play emergency notification sound...');
+    console.log('Attempting to play emergency notification sound...');
     
     try {
       if (audioElement) {
-        console.log('🎵 Using custom bear-alert.mp3 sound');
+        console.log('Using custom bear-alert.mp3 sound');
         // Reset audio to beginning
         audioElement.currentTime = 0;
         
@@ -146,28 +156,28 @@ function NotificationSystem({ socket }) {
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              console.log('✅ Emergency sound played successfully');
+              console.log('Emergency sound played successfully');
             })
             .catch(error => {
-              console.log('❌ Emergency audio play failed:', error);
-              console.log('🔧 Trying to play again after user interaction...');
+              console.log('Emergency audio play failed:', error);
+              console.log('Trying to play again after user interaction...');
             });
         }
       } else {
-        console.log('⚠️ Emergency audio not loaded');
+        console.log('Emergency audio not loaded');
       }
     } catch (error) {
-      console.log('❌ Emergency sound playback error:', error);
+      console.log('Emergency sound playback error:', error);
     }
   }, [audioElement]);
 
-  // ✅ NEW: Play resolved chime sound
+  // NEW: Play resolved chime sound
   const playResolvedSound = useCallback(() => {
-    console.log('🔔 Attempting to play resolved chime sound...');
+    console.log('Attempting to play resolved chime sound...');
     
     try {
       if (resolvedAudioElement) {
-        console.log('🎵 Using custom resolved_chime.mp3 sound');
+        console.log('Using custom resolved_chime.mp3 sound');
         // Reset audio to beginning
         resolvedAudioElement.currentTime = 0;
         
@@ -177,25 +187,25 @@ function NotificationSystem({ socket }) {
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              console.log('✅ Resolved chime played successfully');
+              console.log('Resolved chime played successfully');
             })
             .catch(error => {
-              console.log('❌ Resolved chime play failed:', error);
-              console.log('🔧 Trying to play again after user interaction...');
+              console.log('Resolved chime play failed:', error);
+              console.log('Trying to play again after user interaction...');
             });
         }
       } else {
-        console.log('⚠️ Resolved chime audio not loaded');
+        console.log('Resolved chime audio not loaded');
       }
     } catch (error) {
-      console.log('❌ Resolved chime playback error:', error);
+      console.log('Resolved chime playback error:', error);
     }
   }, [resolvedAudioElement]);
 
-  // ✅ Removed fallback sound - only use custom bear-alert.mp3
+  // Removed fallback sound - only use custom bear-alert.mp3
 
   const showNotification = useCallback((incident) => {
-    console.log('🔔 Showing notification for incident:', incident);
+    console.log('Showing notification for incident:', incident);
     
     const notification = {
       id: Date.now(),
@@ -206,7 +216,7 @@ function NotificationSystem({ socket }) {
     setNotifications(prev => [notification, ...prev.slice(0, 4)]); // Keep last 5
     setCurrentNotification(notification);
     
-    // ✅ Play custom bear-alert sound
+    // Play custom bear-alert sound
     playNotificationSound();
     
     // Auto-hide after 8 seconds
@@ -215,20 +225,6 @@ function NotificationSystem({ socket }) {
     }, 8000);
   }, [playNotificationSound]);
 
-  // ✅ Test function to debug notification system
-  const testNotification = useCallback(() => {
-    console.log('🧪 Testing notification system...');
-    const testIncident = {
-      _id: 'test-' + Date.now(),
-      name: 'Test Emergency',
-      description: 'This is a test notification to check if the alarm system works',
-      type: 'fire',
-      status: 'Pending',
-      location: { latitude: 14.5995, longitude: 120.9842 },
-      reportedBy: { firstName: 'Test', lastName: 'User' }
-    };
-    showNotification(testIncident);
-  }, [showNotification]);
 
   const showStatusUpdateNotification = useCallback((incident) => {
     const notification = {
@@ -241,12 +237,12 @@ function NotificationSystem({ socket }) {
     setNotifications(prev => [notification, ...prev.slice(0, 4)]); // Keep last 5
     setCurrentNotification(notification);
     
-    // ✅ Play different sound based on status
+    // Play different sound based on status
     if (incident.status === 'Resolved') {
-      console.log('🎉 Incident resolved - playing resolved chime');
+      console.log('Incident resolved - playing resolved chime');
       playResolvedSound();
     } else {
-      console.log('📊 Status update - playing emergency sound');
+      console.log('Status update - playing emergency sound');
       playNotificationSound();
     }
     
@@ -269,9 +265,9 @@ function NotificationSystem({ socket }) {
       showStatusUpdateNotification(incident);
     });
 
-    // ✅ NEW: Listen for deleted incidents - hide any notifications for this incident
+    // NEW: Listen for deleted incidents - hide any notifications for this incident
     socket.on('incidentDeleted', ({ incidentId, incident }) => {
-      console.log(`🗑️ Incident ${incidentId} was deleted - hiding any notifications`);
+      console.log(`Incident ${incidentId} was deleted - hiding any notifications`);
       
       // Hide current notification if it's for the deleted incident
       if (currentNotification && currentNotification.incident._id === incidentId) {
@@ -285,7 +281,7 @@ function NotificationSystem({ socket }) {
     return () => {
       socket.off('incidentCreated');
       socket.off('incidentStatusUpdated');
-      socket.off('incidentDeleted'); // ✅ NEW: Clean up deleted incident listener
+      socket.off('incidentDeleted'); // NEW: Clean up deleted incident listener
     };
   }, [socket, showNotification, showStatusUpdateNotification, currentNotification]);
 
@@ -304,6 +300,14 @@ function NotificationSystem({ socket }) {
   if (!currentNotification) return null;
 
   const { incident } = currentNotification;
+  
+  // Decode HTML entities
+  const decodeHTMLEntities = (text) => {
+    if (!text) return text;
+    const textArea = document.createElement('textarea');
+    textArea.innerHTML = text;
+    return textArea.value;
+  };
   
   const reporterName = incident.reportedBy 
     ? `${incident.reportedBy.firstName || 'Unknown'} ${incident.reportedBy.lastName || 'User'}`
@@ -348,14 +352,14 @@ function NotificationSystem({ socket }) {
         
         <Box sx={{ mt: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-            {incident.name}
+            {decodeHTMLEntities(incident.name)}
           </Typography>
           
           {incident.description && (
             <Typography variant="body2" sx={{ mb: 1, opacity: 0.9 }}>
-              {incident.description.length > 100 
-                ? incident.description.substring(0, 100) + '...' 
-                : incident.description
+              {decodeHTMLEntities(incident.description).length > 100 
+                ? decodeHTMLEntities(incident.description).substring(0, 100) + '...' 
+                : decodeHTMLEntities(incident.description)
               }
             </Typography>
           )}

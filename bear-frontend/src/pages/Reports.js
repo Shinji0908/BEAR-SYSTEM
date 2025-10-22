@@ -143,6 +143,8 @@ function Reports() {
       case "hospital": return "success";
       case "police": return "info";
       case "barangay": return "warning";
+      case "earthquake": return "error";
+      case "flood": return "primary";
       default: return "default";
     }
   };
@@ -157,6 +159,14 @@ function Reports() {
   const formatTime = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleTimeString();
+  };
+
+  // Decode HTML entities
+  const decodeHTMLEntities = (text) => {
+    if (!text) return text;
+    const textArea = document.createElement('textarea');
+    textArea.innerHTML = text;
+    return textArea.value;
   };
 
   // Generate report data
@@ -206,14 +216,18 @@ function Reports() {
 
     // Add incident details
     filteredIncidents.forEach(incident => {
+      const locationString = typeof incident.location === 'object' && incident.location !== null
+        ? `${incident.location.latitude || 'N/A'}, ${incident.location.longitude || 'N/A'}`
+        : incident.location || "";
+      
       csvContent.push([
-        incident.name || "",
+        decodeHTMLEntities(incident.name) || "",
         incident.type || "",
         incident.status || "",
-        incident.location || "",
+        locationString,
         formatDate(incident.createdAt),
         formatTime(incident.createdAt),
-        (incident.description || "").replace(/\n/g, " ")
+        decodeHTMLEntities(incident.description || "").replace(/\n/g, " ")
       ]);
     });
 
@@ -256,7 +270,7 @@ function Reports() {
             <ArrowBack />
           </IconButton>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            📊 Incident Reports
+            Incident Reports
           </Typography>
           <IconButton color="inherit" onClick={fetchIncidents}>
             <Refresh />
@@ -299,6 +313,8 @@ function Reports() {
                     <MenuItem value="fire">Fire</MenuItem>
                     <MenuItem value="hospital">Hospital</MenuItem>
                     <MenuItem value="police">Police</MenuItem>
+                    <MenuItem value="earthquake">Earthquake</MenuItem>
+                    <MenuItem value="flood">Flood</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -363,11 +379,13 @@ function Reports() {
                     <TableRow key={incident._id} hover>
                       <TableCell>
                         <Typography variant="subtitle2">
-                          {incident.name || "Untitled"}
+                          {decodeHTMLEntities(incident.name) || "Untitled"}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {incident.description?.substring(0, 50)}
-                          {incident.description?.length > 50 ? "..." : ""}
+                          {incident.description ? (
+                            decodeHTMLEntities(incident.description).substring(0, 50) + 
+                            (decodeHTMLEntities(incident.description).length > 50 ? "..." : "")
+                          ) : ""}
                         </Typography>
                       </TableCell>
                       <TableCell>

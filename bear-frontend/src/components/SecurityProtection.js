@@ -25,23 +25,9 @@ const SecurityProtection = () => {
       }
     };
 
-    // 3. Disable text selection
-    const handleSelectStart = (e) => {
-      e.preventDefault();
-      return false;
-    };
-
-    // 4. Disable drag
-    const handleDragStart = (e) => {
-      e.preventDefault();
-      return false;
-    };
-
     // Add event listeners
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('selectstart', handleSelectStart);
-    document.addEventListener('dragstart', handleDragStart);
 
     // Advanced source protection
     const protectSourceCode = () => {
@@ -109,15 +95,13 @@ const SecurityProtection = () => {
     disableSourceMaps();
     
     console.clear();
-    console.log('%c⚠️ WARNING ⚠️', 'color: red; font-size: 20px; font-weight: bold;');
+    console.log('%cWARNING', 'color: red; font-size: 20px; font-weight: bold;');
     console.log('%cThis is a browser feature intended for developers. Do not enter any code here that someone told you to copy and paste.', 'color: red; font-size: 14px;');
-    console.log('%c🔒 Source code protection is active', 'color: orange; font-size: 12px;');
+    console.log('%cSource code protection is active', 'color: orange; font-size: 12px;');
 
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('selectstart', handleSelectStart);
-      document.removeEventListener('dragstart', handleDragStart);
     };
   }, []);
 

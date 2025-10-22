@@ -59,19 +59,22 @@ function VerifyAccounts() {
     try {
       setLoading(true);
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/verification/pending`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch pending verifications');
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to fetch pending verifications'}`);
       }
       
       const data = await response.json();
-      console.log('Fetched pending users:', data);
-      setPendingUsers(data);
+      setPendingUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching pending users:', error);
-      setMessage({ type: 'error', text: 'Failed to fetch pending verifications' });
+      setMessage({ type: 'error', text: `Failed to fetch pending verifications: ${error.message}` });
     } finally {
       setLoading(false);
     }
@@ -93,7 +96,6 @@ function VerifyAccounts() {
       }
       
       const data = await response.json();
-      console.log('User details:', data);
       setUserDetails(data);
     } catch (error) {
       console.error('Error fetching user details:', error);

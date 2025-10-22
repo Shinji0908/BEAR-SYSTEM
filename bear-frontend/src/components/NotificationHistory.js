@@ -20,7 +20,9 @@ import {
   LocalHospital,
   LocalPolice,
   Home,
-  AccessTime
+  AccessTime,
+  Waves,
+  Terrain
 } from '@mui/icons-material';
 import { io } from 'socket.io-client';
 
@@ -37,6 +39,10 @@ function NotificationHistory() {
         return <LocalHospital sx={{ fontSize: 20 }} />;
       case 'police':
         return <LocalPolice sx={{ fontSize: 20 }} />;
+      case 'earthquake':
+        return <Terrain sx={{ fontSize: 20 }} />;
+      case 'flood':
+        return <Waves sx={{ fontSize: 20 }} />;
       default:
         return <Home sx={{ fontSize: 20 }} />;
     }
@@ -49,6 +55,10 @@ function NotificationHistory() {
       case 'hospital':
         return 'success';
       case 'police':
+        return 'info';
+      case 'earthquake':
+        return 'error';
+      case 'flood':
         return 'info';
       default:
         return 'warning';
@@ -72,7 +82,7 @@ function NotificationHistory() {
     });
     
     newSocket.on("connect", () => {
-      console.log("✅ Notification History Socket connected");
+      console.log("Notification History Socket connected");
     });
 
     // Listen for new incidents
@@ -127,6 +137,15 @@ function NotificationHistory() {
           <List sx={{ maxHeight: 400, overflow: 'auto' }}>
             {notifications.map((notification, index) => {
               const { incident } = notification;
+              
+              // Decode HTML entities
+              const decodeHTMLEntities = (text) => {
+                if (!text) return text;
+                const textArea = document.createElement('textarea');
+                textArea.innerHTML = text;
+                return textArea.value;
+              };
+              
               const reporterName = incident.reportedBy 
                 ? `${incident.reportedBy.firstName || 'Unknown'} ${incident.reportedBy.lastName || 'User'}`
                 : incident.name || 'Anonymous User';
@@ -140,7 +159,7 @@ function NotificationHistory() {
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                          {incident.name}
+                          {decodeHTMLEntities(incident.name)}
                         </Typography>
                         <Chip 
                           size="small" 
@@ -154,9 +173,9 @@ function NotificationHistory() {
                       <Box>
                         {incident.description && (
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            {incident.description.length > 80 
-                              ? incident.description.substring(0, 80) + '...' 
-                              : incident.description
+                            {decodeHTMLEntities(incident.description).length > 80 
+                              ? decodeHTMLEntities(incident.description).substring(0, 80) + '...' 
+                              : decodeHTMLEntities(incident.description)
                             }
                           </Typography>
                         )}

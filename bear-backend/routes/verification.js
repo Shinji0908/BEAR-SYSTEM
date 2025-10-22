@@ -13,31 +13,7 @@ const {
   requireAdmin, 
   requireVerificationAccess 
 } = require("../middleware/authorization");
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
-  process.exit(1);
-}
-
-// ✅ Helper function to normalize verification status
-const normalizeVerificationStatus = (status) => {
-  if (!status) return null;
-  const normalized = status.toLowerCase();
-  if (normalized === "approved") {
-    return "Approved"; // Keep "Approved" status
-  }
-  if (normalized === "verified") {
-    return "Verified"; // Keep "Verified" status
-  }
-  return status; // Keep original case for other statuses
-};
-
-// ✅ Helper function to check if user is verified (handles both "Verified" and "Approved")
-const isUserVerified = (status) => {
-  if (!status) return false;
-  const normalized = status.toLowerCase();
-  return normalized === "verified" || normalized === "approved";
-};
+const { JWT_SECRET, normalizeVerificationStatus } = require("../utils/helpers");
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "../uploads/verification");
@@ -109,86 +85,6 @@ const handleUploadErrors = (err, req, res, next) => {
   next();
 };
 
-// Middleware to verify JWT token
-const authenticateToken = (req, res, next) => {
-  console.log("🔍 Authenticating token for:", req.method, req.path);
-  console.log("🔍 Authorization header:", req.headers.authorization ? "Present" : "Missing");
-  
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) {
-    console.log("❌ No token provided");
-    return res.status(401).json({ message: "No token provided" });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    console.log("✅ Token decoded successfully for user:", decoded.id);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    console.log("❌ Token verification failed:", error.message);
-    return res.status(401).json({ message: "Invalid token" });
-  }
-};
-
-
-/**
- * @route   POST /api/verification/fix-upload
- * @desc    Fix endpoint to manually add uploaded files to database (no auth required for debugging)
- */
-router.post("/fix-upload", async (req, res) => {
-  try {
-    console.log("🔧 FIX UPLOAD ENDPOINT HIT");
-    
-    // Find the most recent user (likely the one who uploaded)
-    const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5);
-    
-    if (recentUsers.length === 0) {
-      return res.status(404).json({ message: "No users found" });
-    }
-    
-    const user = recentUsers[0]; // Most recent user
-    console.log(`🔧 Adding uploaded file to: ${user.firstName} ${user.lastName}`);
-    
-    // Add the uploaded file to their verification documents
-    const uploadedFile = {
-      type: "1758766339050_hh33gr_CAMERA_20250925_101156_2466369510778498623.jpg",
-      description: "verification document",
-      uploadedAt: new Date("2025-09-25T02:13:59.050Z"),
-      uploadedBy: user._id,
-      originalName: "CAMERA_20250925_101156_2466369510778498623.jpg",
-      fileSize: 245760,
-      mimetype: "image/jpeg"
-    };
-    
-    // Add to existing documents or create new array
-    user.verificationDocuments = [...(user.verificationDocuments || []), uploadedFile];
-    user.verificationStatus = "Pending";
-    user.rejectionReason = null;
-    
-    await user.save();
-    
-    console.log('✅ Successfully added uploaded file to database');
-    
-    res.json({
-      message: "Successfully fixed uploaded file",
-      user: {
-        id: user._id,
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email
-      },
-      documentCount: user.verificationDocuments.length,
-      status: user.verificationStatus
-    });
-    
-  } catch (error) {
-    console.error("🔧 Fix upload error:", error);
-    res.status(500).json({ 
-      message: "Failed to fix uploaded file",
-      error: error.message
-    });
-  }
-});
 
 
 /**
@@ -321,34 +217,9 @@ router.get("/status", authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/verification/pending
- * @desc    Get all pending verifications (Web dashboard only)
- */
+
 router.get("/pending", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    // Check if user is admin - check Admin table first, then User table
-    let isAdmin = false;
-    let adminUser = null;
-    
-    // First check Admin table (for admin users)
-    const admin = await Admin.findById(req.user.id);
-    
-    if (admin && admin.role === "Admin") { 
-      isAdmin = true;
-    } else {
-      // Check User table (for users with Admin role)
-      adminUser = await User.findById(req.user.id);
-      
-      if (adminUser && adminUser.role === "Admin") {
-        isAdmin = true;
-      }
-    }
-    
-    if (!isAdmin) {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-
     const pendingUsers = await User.find({ 
       verificationStatus: "Pending",
       verificationDocuments: { $exists: true, $not: { $size: 0 } }
@@ -369,24 +240,12 @@ router.get("/pending", authenticateToken, requireAdmin, async (req, res) => {
 router.get("/:userId/details", authenticateToken, requireVerificationAccess, async (req, res) => {
   try {
     const { userId } = req.params;
-    const adminId = req.user.id;
+    const adminId = req.user._id;
 
-    // Check if user is admin - check Admin table first, then User table
-    let isAdmin = false;
-    
-    // First check Admin table (for admin users)
+    // Check if user is admin - only check Admin table since admins are not in User table
     const admin = await Admin.findById(adminId);
-    if (admin && admin.role === "Admin") {
-      isAdmin = true;
-    } else {
-      // Check User table (for users with Admin role)
-      const adminUser = await User.findById(adminId);
-      if (adminUser && adminUser.role === "Admin") {
-        isAdmin = true;
-      }
-    }
     
-    if (!isAdmin) {
+    if (!admin || admin.role !== "Admin") {
       return res.status(403).json({ message: "Admin access required" });
     }
 
@@ -447,116 +306,61 @@ router.get("/:userId/details", authenticateToken, requireVerificationAccess, asy
  */
 router.put("/:userId/verify", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    console.log("🔍 Verification update endpoint hit");
-    console.log("🔍 Request method:", req.method);
-    console.log("🔍 Request URL:", req.url);
-    console.log("🔍 Headers:", req.headers);
-    console.log("🔍 Body:", req.body);
-    console.log("🔍 Params:", req.params);
-    console.log("🔍 User from token:", req.user);
-    
     const { status, rejectionReason } = req.body;
     const { userId } = req.params;
-    const adminId = req.user.id;
-    
-    console.log("🔍 Processing verification update:");
-    console.log("🔍 - User ID:", userId);
-    console.log("🔍 - Admin ID:", adminId);
-    console.log("🔍 - Status:", status);
-    console.log("🔍 - Rejection Reason:", rejectionReason);
+    const adminId = req.user._id;
 
     // Validate status
     if (!["Verified", "Approved", "Rejected"].includes(status)) {
-      console.log("❌ Invalid status:", status);
       return res.status(400).json({ message: "Status must be 'Verified', 'Approved', or 'Rejected'" });
     }
 
-    // Check if user is admin - check Admin table first, then User table
-    console.log("🔍 Checking admin permissions...");
-    let isAdmin = false;
-    
-    // First check Admin table (for admin users)
-    console.log("🔍 Checking Admin table for admin ID:", adminId);
+    // Check if user is admin - only check Admin table since admins are not in User table
     const admin = await Admin.findById(adminId);
-    console.log("🔍 Admin table result:", admin ? `${admin.username} (${admin.role})` : "Not found");
     
-    if (admin && admin.role === "Admin") {
-      isAdmin = true;
-      console.log("✅ Admin found in Admin table");
-    } else {
-      // Check User table (for users with Admin role)
-      console.log("🔍 Checking User table for admin ID:", adminId);
-      const adminUser = await User.findById(adminId);
-      console.log("🔍 User table result:", adminUser ? `${adminUser.firstName} ${adminUser.lastName} (${adminUser.role})` : "Not found");
-      
-      if (adminUser && adminUser.role === "Admin") {
-        isAdmin = true;
-        console.log("✅ Admin found in User table");
-      }
-    }
-    
-    if (!isAdmin) {
-      console.log("❌ Access denied - not admin in either table");
+    if (!admin || admin.role !== "Admin") {
       return res.status(403).json({ message: "Admin access required" });
     }
-    
-    console.log("✅ Admin access confirmed");
 
     // Find user to verify
-    console.log("🔍 Looking for user to verify with ID:", userId);
     const user = await User.findById(userId);
     if (!user) {
-      console.log("❌ User not found with ID:", userId);
       return res.status(404).json({ message: "User not found" });
     }
-    console.log("✅ Found user to verify:", user.firstName, user.lastName);
-    console.log("🔍 Current verification status:", user.verificationStatus);
-    console.log("🔍 Current verification documents count:", user.verificationDocuments ? user.verificationDocuments.length : 0);
 
     // 🗑️ DELETE VERIFICATION DOCUMENTS (both files and database records)
     let deletedFilesCount = 0;
     if (user.verificationDocuments && user.verificationDocuments.length > 0) {
-      console.log(`🗑️ Deleting ${user.verificationDocuments.length} verification documents for user ${user.firstName} ${user.lastName}`);
-      
       // Delete physical files from filesystem
       for (const doc of user.verificationDocuments) {
         const filePath = path.join(uploadsDir, doc.type);
         try {
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
-            console.log(`✅ Deleted file: ${doc.type}`);
             deletedFilesCount++;
-          } else {
-            console.log(`⚠️ File not found: ${doc.type}`);
           }
         } catch (fileError) {
-          console.error(`❌ Error deleting file ${doc.type}:`, fileError);
+          console.error(`Error deleting file ${doc.type}:`, fileError);
           // Continue with other files even if one fails
         }
       }
       
       // Clear verification documents from database
       user.verificationDocuments = [];
-      console.log(`✅ Cleared verification document references from database`);
     }
 
     // Update verification status
-    console.log("🔍 Updating user verification status...");
     user.verificationStatus = normalizeVerificationStatus(status);
     user.verifiedBy = adminId;
     user.verifiedAt = new Date();
     
     if (status === "Rejected") {
       user.rejectionReason = rejectionReason || "Documents not sufficient for verification";
-      console.log("🔍 Set rejection reason:", user.rejectionReason);
     } else {
       user.rejectionReason = null;
-      console.log("🔍 Cleared rejection reason for approved user");
     }
 
-    console.log("🔍 Saving user with new verification status:", status);
     await user.save();
-    console.log("✅ User verification status updated successfully");
 
     res.json({
       message: `User verification ${status.toLowerCase()} successfully. ${deletedFilesCount} documents cleaned up.`,

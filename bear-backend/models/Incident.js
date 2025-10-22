@@ -16,7 +16,7 @@ const IncidentSchema = new mongoose.Schema({
   // High-level emergency category (limited to LGU responders)
   type: {
     type: String,
-    enum: ["barangay", "fire", "hospital", "police"],
+    enum: ["barangay", "fire", "hospital", "police", "earthquake", "flood"],
     default: "barangay",
   },
   location: {

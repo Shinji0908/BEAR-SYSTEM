@@ -1,12 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
-  process.exit(1);
-}
+const { JWT_SECRET } = require('../utils/helpers');
 
 // Enhanced authentication middleware
 const authenticateToken = async (req, res, next) => {
