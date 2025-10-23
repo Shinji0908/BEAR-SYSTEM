@@ -77,8 +77,8 @@ const validateIncident = [
   
   body('type')
     .optional()
-    .isIn(['barangay', 'fire', 'hospital', 'police'])
-    .withMessage('Type must be barangay, fire, hospital, or police'),
+    .isIn(['barangay', 'fire', 'hospital', 'police', 'earthquake', 'flood'])
+    .withMessage('Type must be barangay, fire, hospital, police, earthquake, or flood'),
 ];
 
 // Validation middleware for message sending

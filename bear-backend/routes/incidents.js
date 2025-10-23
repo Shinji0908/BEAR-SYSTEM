@@ -148,7 +148,7 @@ router.get("/", authenticateToken, requireAuth, async (req, res) => {
  * @route   PUT /api/incidents/:id/status
  * @desc    Update incident status (Responders/Admin only)
  */
-router.put("/:id/status", authenticateToken, requireAdminOrResponder, requireIncidentAccess, async (req, res) => {
+router.put("/:id/status", authenticateToken, requireAdminOrResponder, async (req, res) => {
   try {
 
     const { id } = req.params;

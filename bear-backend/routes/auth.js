@@ -1,5 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { validateRegistration, validateLogin, handleValidationErrors } = require("../middleware/validation");
 const { JWT_SECRET, normalizeVerificationStatus, generateJWT, formatUserResponse } = require("../utils/helpers");
@@ -227,7 +228,7 @@ router.get("/profile", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // ✅ Determine verification status for response
+    // Determine verification status for response
     // If user hasn't submitted any documents yet, return null
     // Otherwise, return the actual verification status
     let responseVerificationStatus = normalizeVerificationStatus(user.verificationStatus);
