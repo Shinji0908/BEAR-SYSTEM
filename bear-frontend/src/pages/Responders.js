@@ -84,6 +84,13 @@ function Responders() {
     verificationNotes: "",
   });
 
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState({
+    email: "",
+    password: "",
+    contact: "",
+  });
+
   // Fetch responders data
   const fetchResponders = useCallback(async () => {
     try {
@@ -141,6 +148,53 @@ function Responders() {
     console.log("Filtered responders:", filteredResponders.length);
   }, [searchTerm, filterStatus, responders, filteredResponders]);
 
+  // Validate email
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) return "";
+    if (!emailRegex.test(email)) {
+      return "Please enter a valid email address";
+    }
+    return "";
+  };
+
+  // Validate password
+  const validatePassword = (password) => {
+    if (!password && !editingResponder) return "Password is required";
+    if (!password) return ""; // Allow empty for editing
+    
+    if (password.length < 8) {
+      return "Password must be at least 8 characters";
+    }
+    
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      return "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+    }
+    
+    return "";
+  };
+
+  // Validate Philippine contact number
+  const validateContact = (contact) => {
+    if (!contact || !contact.trim()) return ""; // Optional field
+    
+    // Remove spaces and dashes for validation
+    const cleanContact = contact.trim().replace(/[-\s]/g, '');
+    
+    // Philippine mobile number format: 09XXXXXXXXX, +639XXXXXXXXX, 639XXXXXXXXX
+    const phoneRegex = /^(\+?63|0)?9\d{9}$/;
+    
+    if (!phoneRegex.test(cleanContact)) {
+      return "Invalid Philippine mobile number (e.g., 09XXXXXXXXX)";
+    }
+    
+    return "";
+  };
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -148,6 +202,24 @@ function Responders() {
       ...prev,
       [name]: value,
     }));
+
+    // Validate on change
+    if (name === "email") {
+      setValidationErrors(prev => ({
+        ...prev,
+        email: validateEmail(value),
+      }));
+    } else if (name === "password") {
+      setValidationErrors(prev => ({
+        ...prev,
+        password: validatePassword(value),
+      }));
+    } else if (name === "contact") {
+      setValidationErrors(prev => ({
+        ...prev,
+        contact: validateContact(value),
+      }));
+    }
   };
 
   // Handle verification
@@ -185,6 +257,22 @@ function Responders() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate all fields before submission
+    const emailError = validateEmail(formData.email);
+    const passwordError = validatePassword(formData.password);
+    const contactError = validateContact(formData.contact);
+
+    if (emailError || passwordError || contactError) {
+      setValidationErrors({
+        email: emailError,
+        password: passwordError,
+        contact: contactError,
+      });
+      showSnackbar("Please fix validation errors before submitting", "error");
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       const url = editingResponder 
@@ -267,6 +355,11 @@ function Responders() {
       password: "",
       verificationStatus: "pending",
       verificationNotes: "",
+    });
+    setValidationErrors({
+      email: "",
+      password: "",
+      contact: "",
     });
     setEditingResponder(null);
   };
@@ -698,6 +791,8 @@ function Responders() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
+                  error={!!validationErrors.email}
+                  helperText={validationErrors.email || "Enter a valid email address"}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -709,7 +804,13 @@ function Responders() {
                   value={formData.password}
                   onChange={handleInputChange}
                   required={!editingResponder}
-                  helperText={editingResponder ? "Leave empty to keep current password" : "Required for new responders"}
+                  error={!!validationErrors.password}
+                  helperText={
+                    validationErrors.password || 
+                    (editingResponder 
+                      ? "Leave empty to keep current password" 
+                      : "Min 8 chars, 1 uppercase, 1 lowercase, 1 number")
+                  }
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -719,6 +820,8 @@ function Responders() {
                   name="contact"
                   value={formData.contact}
                   onChange={handleInputChange}
+                  error={!!validationErrors.contact}
+                  helperText={validationErrors.contact || "Philippine mobile number (e.g., 09XXXXXXXXX)"}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>

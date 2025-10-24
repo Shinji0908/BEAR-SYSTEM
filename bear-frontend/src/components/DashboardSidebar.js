@@ -15,6 +15,7 @@ import {
   People,
   Assessment,
   VerifiedUser,
+  AccountCircle,
   ExitToApp,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -55,6 +56,12 @@ function DashboardSidebar({ user, onLogout }) {
       icon: <Assessment />,
       path: "/reports",
       color: "var(--bear-yellow)",
+    },
+    {
+      text: "My Profile",
+      icon: <AccountCircle />,
+      path: "/profile",
+      color: "var(--bear-blue)",
     },
   ];
 

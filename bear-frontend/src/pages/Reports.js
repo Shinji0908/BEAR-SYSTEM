@@ -196,56 +196,163 @@ function Reports() {
     };
   };
 
-  // Download report as CSV
+  // Download report as CSV with enhanced formatting
   const downloadReport = () => {
     const reportData = generateReportData();
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const adminName = `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || "System Administrator";
+    
+    // CSV Header Section - Professional Format
     const csvContent = [
-      ["Incident Report", `Period: ${reportData.period}`],
-      ["Generated on", new Date().toLocaleString()],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      ["BARANGAY EMERGENCY ALERT & RESPONSE (BEAR) SYSTEM"],
+      ["OFFICIAL INCIDENT MANAGEMENT REPORT"],
+      ["═══════════════════════════════════════════════════════════════════════"],
       [""],
-      ["Summary"],
-      ["Total Incidents", reportData.totalIncidents],
-      ["Open", reportData.openIncidents],
-      ["In Progress", reportData.inProgressIncidents],
-      ["Resolved", reportData.resolvedIncidents],
-      ["Closed", reportData.closedIncidents],
+      ["REPORT INFORMATION"],
+      ["Report Type:", "Incident Activity Report"],
+      ["Report Period:", reportData.period],
+      ["Date Generated:", new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })],
+      ["Time Generated:", new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })],
+      ["Prepared By:", adminName],
+      ["Report Status:", "OFFICIAL"],
+      ["Total Incidents:", reportData.totalIncidents],
       [""],
-      ["Incident Details"],
-      ["Title", "Type", "Status", "Location", "Date", "Time", "Description"]
+      ["═══════════════════════════════════════════════════════════════════════"],
+      ["SECTION I: EXECUTIVE SUMMARY"],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      [""],
+      ["This report provides a comprehensive overview of all emergency incidents"],
+      ["recorded and managed through the BEAR System during the specified period."],
+      ["The data presented herein is accurate as of the generation date and time."],
+      [""],
+      ["INCIDENT STATUS DISTRIBUTION"],
+      ["Status Category", "Total Count", "Percentage of Total", "Status Description"],
+      ["Pending/Open", reportData.openIncidents, `${reportData.totalIncidents > 0 ? ((reportData.openIncidents / reportData.totalIncidents) * 100).toFixed(2) : 0}%`, "Awaiting Response"],
+      ["In Progress", reportData.inProgressIncidents, `${reportData.totalIncidents > 0 ? ((reportData.inProgressIncidents / reportData.totalIncidents) * 100).toFixed(2) : 0}%`, "Currently Being Addressed"],
+      ["Resolved", reportData.resolvedIncidents, `${reportData.totalIncidents > 0 ? ((reportData.resolvedIncidents / reportData.totalIncidents) * 100).toFixed(2) : 0}%`, "Successfully Completed"],
+      ["Closed", reportData.closedIncidents, `${reportData.totalIncidents > 0 ? ((reportData.closedIncidents / reportData.totalIncidents) * 100).toFixed(2) : 0}%`, "Archived"],
+      [""],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      ["SECTION II: INCIDENT TYPE ANALYSIS"],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      [""],
+      ["Emergency Category", "Frequency Count", "Priority Level"],
+      ...Object.entries(reportData.typeBreakdown).map(([type, count]) => {
+        const priorityMap = {
+          'fire': 'CRITICAL',
+          'police': 'HIGH',
+          'hospital': 'CRITICAL',
+          'barangay': 'MODERATE',
+          'earthquake': 'CRITICAL',
+          'flood': 'HIGH'
+        };
+        return [
+          type.toUpperCase(), 
+          count,
+          priorityMap[type.toLowerCase()] || 'STANDARD'
+        ];
+      }),
+      [""],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      ["SECTION III: DETAILED INCIDENT RECORDS"],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      [""],
+      [
+        "Reference No.",
+        "Incident Title", 
+        "Emergency Category", 
+        "Current Status", 
+        "Reported By (Name)",
+        "Contact Information",
+        "Location (Latitude)", 
+        "Location (Longitude)",
+        "Date of Report", 
+        "Time of Report",
+        "Incident Description"
+      ]
     ];
 
-    // Add incident details
-    filteredIncidents.forEach(incident => {
-      const locationString = typeof incident.location === 'object' && incident.location !== null
-        ? `${incident.location.latitude || 'N/A'}, ${incident.location.longitude || 'N/A'}`
-        : incident.location || "";
+    // Add incident details with more fields
+    filteredIncidents.forEach((incident, index) => {
+      const reporterName = incident.reportedBy 
+        ? `${incident.reportedBy.firstName || ''} ${incident.reportedBy.lastName || ''}`.trim()
+        : "Anonymous/Unknown";
+      
+      const contact = incident.contact || "Not Provided";
+      
+      const latitude = typeof incident.location === 'object' && incident.location !== null
+        ? incident.location.latitude || 'Not Available'
+        : 'Not Available';
+      
+      const longitude = typeof incident.location === 'object' && incident.location !== null
+        ? incident.location.longitude || 'Not Available'
+        : 'Not Available';
       
       csvContent.push([
-        decodeHTMLEntities(incident.name) || "",
-        incident.type || "",
-        incident.status || "",
-        locationString,
+        `INC-${String(index + 1).padStart(4, '0')}`,
+        decodeHTMLEntities(incident.name) || "Untitled Incident",
+        incident.type ? incident.type.toUpperCase() : "UNCLASSIFIED",
+        incident.status ? incident.status.toUpperCase().replace(/_/g, ' ') : "PENDING",
+        reporterName,
+        contact,
+        latitude,
+        longitude,
         formatDate(incident.createdAt),
         formatTime(incident.createdAt),
-        decodeHTMLEntities(incident.description || "").replace(/\n/g, " ")
+        decodeHTMLEntities(incident.description || "No detailed description provided").replace(/\n/g, " ").replace(/,/g, ";")
       ]);
     });
 
+    // Footer Section
+    csvContent.push(
+      [""],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      ["END OF REPORT"],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      [""],
+      ["CERTIFICATION"],
+      [""],
+      ["This report is hereby certified as true and accurate based on the records"],
+      ["maintained by the Barangay Emergency Alert & Response (BEAR) System."],
+      [""],
+      ["Prepared by:", adminName],
+      ["Position:", "System Administrator"],
+      ["Date:", new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
+      [""],
+      ["_____________________________"],
+      ["Digital Signature"],
+      [""],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      ["NOTICE"],
+      ["This document contains confidential information intended solely for"],
+      ["official barangay use. Unauthorized disclosure, copying, or distribution"],
+      ["of this report is strictly prohibited."],
+      ["═══════════════════════════════════════════════════════════════════════"],
+      [""],
+      ["Report Reference:", `RPT-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}-${String(Date.now()).slice(-6)}`],
+      ["System Version:", "BEAR v1.0"],
+      ["Generated via:", "BEAR Web Administration Portal"]
+    );
+
+    // Create CSV string
     const csvString = csvContent.map(row => 
-      row.map(field => `"${field}"`).join(",")
+      row.map(field => `"${String(field)}"`).join(",")
     ).join("\n");
 
-    const blob = new Blob([csvString], { type: "text/csv" });
+    // Download file
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `incident-report-${reportData.period.replace(/\s+/g, "-").toLowerCase()}.csv`;
+    const fileName = `BEAR-Official-Report-${reportData.period.replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    showSnackbar("Report downloaded successfully", "success");
+    showSnackbar("Official report downloaded successfully", "success");
   };
 
   if (loading) {

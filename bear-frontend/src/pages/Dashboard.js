@@ -282,7 +282,7 @@ function Dashboard() {
             <Grid item xs={12} sm={6} md={3}>
               <Card sx={{ textAlign: "center", p: 2 }}>
                 <Typography variant="h6" color="info.main">
-                  {dashboardData?.metrics?.systemUptime || "99.9%"}
+                  {dashboardData?.metrics?.systemUptime || "0.0%"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   System Uptime

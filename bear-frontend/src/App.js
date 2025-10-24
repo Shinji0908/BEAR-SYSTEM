@@ -11,6 +11,7 @@ import Users from "./pages/Users";
 import Responders from "./pages/Responders";
 import Reports from "./pages/Reports";
 import VerifyAccounts from "./pages/VerifyAccounts";
+import Profile from "./pages/Profile";
 import NotificationSystem from "./components/NotificationSystem";
 import SecurityProtection from "./components/SecurityProtection";
 
@@ -109,6 +110,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Reports />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           } 
         />
