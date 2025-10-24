@@ -76,6 +76,38 @@ router.post("/register", validateRegistration, handleValidationErrors, async (re
       }
     }
 
+    // ✅ Check if user with same firstName and lastName already exists (case-insensitive)
+    const existingUserByName = await User.findOne({
+      firstName: { $regex: new RegExp(`^${firstName.trim()}$`, 'i') },
+      lastName: { $regex: new RegExp(`^${lastName.trim()}$`, 'i') }
+    });
+    if (existingUserByName) {
+      console.log("❌ User with same name already exists:", `${firstName} ${lastName}`);
+      return res.status(400).json({ 
+        message: `A user with the name "${firstName} ${lastName}" is already registered` 
+      });
+    }
+
+    // ✅ Validate age (must be 18 or older)
+    if (birthday) {
+      const birthDate = new Date(birthday);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      // Adjust age if birthday hasn't occurred yet this year
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      if (age < 18) {
+        console.log("❌ User is under 18 years old:", age);
+        return res.status(400).json({ 
+          message: "You must be at least 18 years old to register" 
+        });
+      }
+    }
+
     // ✅ Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -222,7 +254,7 @@ router.get("/profile", async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.id).select("-password");
 
-    // ✅ Check if user exists
+    // Check if user exists
     if (!user) {
       console.log("❌ User not found with ID:", decoded.id);
       return res.status(404).json({ message: "User not found" });

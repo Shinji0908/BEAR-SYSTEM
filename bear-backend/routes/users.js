@@ -141,6 +141,44 @@ router.post("/", authenticateToken, requireUserManagementAccess, async (req, res
       finalUsername = `${finalUsername}_${Date.now()}`;
     }
 
+    // Check contact uniqueness (if contact is provided)
+    if (contact && contact.trim()) {
+      const existingUserByContact = await User.findOne({ contact: contact.trim() });
+      if (existingUserByContact) {
+        return res.status(400).json({ message: "Contact number already exists" });
+      }
+    }
+
+    // Check if user with same firstName and lastName already exists (case-insensitive)
+    const existingUserByName = await User.findOne({
+      firstName: { $regex: new RegExp(`^${firstName.trim()}$`, 'i') },
+      lastName: { $regex: new RegExp(`^${lastName.trim()}$`, 'i') }
+    });
+    if (existingUserByName) {
+      return res.status(400).json({ 
+        message: `A user with the name "${firstName} ${lastName}" is already registered` 
+      });
+    }
+
+    // Validate age (must be 18 or older)
+    if (birthday) {
+      const birthDate = new Date(birthday);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      // Adjust age if birthday hasn't occurred yet this year
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      if (age < 18) {
+        return res.status(400).json({ 
+          message: "User must be at least 18 years old to register" 
+        });
+      }
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 

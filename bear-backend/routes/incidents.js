@@ -85,6 +85,11 @@ router.post("/", authenticateToken, requireAuth, validateIncident, handleValidat
           strictPopulate: false,
         })
         .lean();
+      
+      // Convert createdAt Date to Unix timestamp (milliseconds) for Android
+      if (populatedIncident.createdAt) {
+        populatedIncident.createdAt = populatedIncident.createdAt.getTime();
+      }
         
       // Broadcast to all clients
       io.emit("incidentCreated", { incident: populatedIncident });
@@ -93,7 +98,13 @@ router.post("/", authenticateToken, requireAuth, validateIncident, handleValidat
       console.log("Socket.IO not available - incident not broadcasted");
     }
 
-    res.status(201).json({ message: "Incident reported successfully", incident });
+    // Convert createdAt Date to Unix timestamp (milliseconds) for Android
+    const responseIncident = incident.toObject();
+    if (responseIncident.createdAt) {
+      responseIncident.createdAt = responseIncident.createdAt.getTime();
+    }
+    
+    res.status(201).json({ message: "Incident reported successfully", incident: responseIncident });
   } catch (error) {
     console.error("Save error:", error);
     res.status(500).json({ message: "Failed to report incident" });
@@ -137,7 +148,14 @@ router.get("/", authenticateToken, requireAuth, async (req, res) => {
       select: "firstName lastName contact email role",
       strictPopulate: false,
     }).lean();
-    res.json(incidents);
+    
+    // Convert createdAt Date to Unix timestamp (milliseconds) for Android
+    const formattedIncidents = incidents.map(incident => ({
+      ...incident,
+      createdAt: incident.createdAt ? incident.createdAt.getTime() : Date.now()
+    }));
+    
+    res.json(formattedIncidents);
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ error: err.message });
@@ -180,13 +198,24 @@ router.put("/:id/status", authenticateToken, requireAdminOrResponder, async (req
     // Emit real-time event
     const io = req.app.get("io");
     if (io) {
+      // Convert to plain object and format timestamp for Android
+      const incidentData = incident.toObject();
+      if (incidentData.createdAt) {
+        incidentData.createdAt = incidentData.createdAt.getTime();
+      }
       // Broadcast to all clients
-      io.emit("incidentStatusUpdated", { incident });
+      io.emit("incidentStatusUpdated", { incident: incidentData });
     }
 
+    // Convert createdAt Date to Unix timestamp (milliseconds) for Android REST response
+    const responseIncident = incident.toObject();
+    if (responseIncident.createdAt) {
+      responseIncident.createdAt = responseIncident.createdAt.getTime();
+    }
+    
     res.json({ 
       message: "Incident status updated successfully", 
-      incident 
+      incident: responseIncident 
     });
   } catch (error) {
     console.error("Status update error:", error);
@@ -249,7 +278,7 @@ router.get("/:incidentId/messages", async (req, res) => {
       senderId: msg.senderId,
       senderName: msg.senderName,
       content: msg.content,
-      timestamp: msg.timestamp
+      timestamp: msg.timestamp.getTime() // Convert Date to Unix timestamp (milliseconds)
     }));
 
     res.json(formattedMessages);
@@ -284,11 +313,22 @@ router.delete("/:id", authenticateToken, requireAdmin, requireIncidentAccess, as
     // Emit real-time event
     const io = req.app.get("io");
     if (io) {
+      // Convert to plain object and format timestamp for Android
+      const incidentData = incident.toObject();
+      if (incidentData.createdAt) {
+        incidentData.createdAt = incidentData.createdAt.getTime();
+      }
       // Broadcast to all clients
-      io.emit("incidentDeleted", { incidentId: id, incident });
+      io.emit("incidentDeleted", { incidentId: id, incident: incidentData });
     }
 
-    res.json({ message: "Incident deleted successfully", incident });
+    // Convert createdAt Date to Unix timestamp (milliseconds) for Android
+    const responseIncident = incident.toObject();
+    if (responseIncident.createdAt) {
+      responseIncident.createdAt = responseIncident.createdAt.getTime();
+    }
+    
+    res.json({ message: "Incident deleted successfully", incident: responseIncident });
   } catch (error) {
     console.error("Delete error:", error);
     if (error.name === 'JsonWebTokenError') {

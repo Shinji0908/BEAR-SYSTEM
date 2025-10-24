@@ -160,6 +160,7 @@ io.on('connection', (socket) => {
   // Authenticate socket connection
   socket.on('authenticate', ({ token }) => {
     try {
+      console.log(`[authenticate] Socket ${socket.id} attempting authentication`);
       const decoded = jwt.verify(token, JWT_SECRET);
       const userId = decoded.id;
       
@@ -167,10 +168,10 @@ io.on('connection', (socket) => {
       userSocketMap.set(userId, socket.id);
       socketUserMap.set(socket.id, userId);
       
-      console.log(`User authenticated: ${userId}`);
+      console.log(`[authenticate] User authenticated: ${userId} -> socket ${socket.id}`);
       socket.emit('authenticated', { userId });
     } catch (error) {
-      console.log(`Socket authentication failed: ${error.message}`);
+      console.log(`[authenticate] Socket authentication failed: ${error.message}`);
       socket.emit('authentication_failed', { message: 'Invalid token' });
     }
   });
@@ -193,13 +194,21 @@ io.on('connection', (socket) => {
   // Chat functionality handlers
   socket.on('joinChat', async ({ incidentId }) => {
     try {
-      if (!incidentId) return;
+      console.log(`[joinChat] Socket ${socket.id} attempting to join chat for incident ${incidentId}`);
+      
+      if (!incidentId) {
+        console.log(`[joinChat] No incidentId provided`);
+        return;
+      }
       
       const userId = socketUserMap.get(socket.id);
       if (!userId) {
+        console.log(`[joinChat] Authentication required - no userId for socket ${socket.id}`);
         socket.emit('error', { message: 'Authentication required to join chat' });
         return;
       }
+      
+      console.log(`[joinChat] User ${userId} attempting to join chat for incident ${incidentId}`);
 
       // Verify user has access to this incident's chat
       const incident = await Incident.findById(incidentId);
@@ -226,7 +235,7 @@ io.on('connection', (socket) => {
 
       // Join the chat room
       socket.join(`chat:${incidentId}`);
-      console.log(`User joined chat room: ${incidentId}`);
+      console.log(`[joinChat] User ${userId} successfully joined chat room: chat:${incidentId}`);
       socket.emit('joinedChat', { incidentId });
     } catch (error) {
       console.error('Error joining chat:', error);
@@ -242,13 +251,19 @@ io.on('connection', (socket) => {
 
   socket.on('sendMessage', async ({ incidentId, content }) => {
     try {
+      console.log(`[sendMessage] Received from socket ${socket.id}:`, { incidentId, content });
+      
       const userId = socketUserMap.get(socket.id);
       if (!userId) {
+        console.log(`[sendMessage] Authentication failed - no userId for socket ${socket.id}`);
         socket.emit('error', { message: 'Authentication required to send messages' });
         return;
       }
+      
+      console.log(`[sendMessage] User ${userId} attempting to send message`);
 
       if (!incidentId || !content || content.trim().length === 0) {
+        console.log(`[sendMessage] Validation failed - missing incidentId or content`);
         socket.emit('error', { message: 'Incident ID and message content are required' });
         return;
       }
@@ -292,6 +307,7 @@ io.on('connection', (socket) => {
       });
 
       await newMessage.save();
+      console.log(`[sendMessage] Message saved to database:`, { messageId: newMessage._id, incidentId });
 
       // Format message for broadcasting
       const messageData = {
@@ -299,13 +315,13 @@ io.on('connection', (socket) => {
         senderId: userId,
         senderName,
         content: newMessage.content,
-        timestamp: newMessage.timestamp
+        timestamp: newMessage.timestamp.getTime() // Convert Date to Unix timestamp (milliseconds)
       };
 
       // Broadcast message to all users in the chat room
       io.to(`chat:${incidentId}`).emit('receiveMessage', messageData);
       
-      console.log(`Message sent in chat: ${incidentId}`);
+      console.log(`[sendMessage] Message broadcasted to room chat:${incidentId}`, messageData);
     } catch (error) {
       console.error('Error sending message:', error);
       socket.emit('error', { message: 'Failed to send message' });
