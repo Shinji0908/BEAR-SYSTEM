@@ -105,7 +105,18 @@ router.post("/upload-documents", authenticateToken, upload.array("documents", 5)
     }
 
     // Validate document type
-    const allowedTypes = ["barangay_id", "utility_bill", "voter_id", "employment_cert", "authorization_letter", "other"];
+    const allowedTypes = [
+      "barangay_id", 
+      "utility_bill", 
+      "voter_id", 
+      "birth_certificate",
+      "employment_cert", 
+      "government_id",
+      "service_cert",
+      "training_cert",
+      "authorization_letter", 
+      "other"
+    ];
     if (!allowedTypes.includes(documentType)) {
       return res.status(400).json({ 
         message: `Invalid document type. Allowed types: ${allowedTypes.join(', ')}` 
@@ -259,11 +270,16 @@ router.get("/:userId/details", authenticateToken, requireVerificationAccess, asy
     }
 
     // Convert file paths to URLs for frontend
+    // Use request origin to construct dynamic URLs
+    const protocol = req.get('x-forwarded-proto') || req.protocol || 'http';
+    const host = req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+    
     const documents = user.verificationDocuments.map(doc => ({
       type: doc.type,
       description: doc.description,
       uploadedAt: doc.uploadedAt,
-      url: `${process.env.API_BASE_URL || 'http://localhost:5000'}/uploads/verification/${doc.type}`,
+      url: `${baseUrl}/uploads/verification/${doc.type}`,
       filename: doc.type
     }));
 

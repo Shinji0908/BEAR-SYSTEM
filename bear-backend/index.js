@@ -94,7 +94,7 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/verification", require("./routes/verification"));
 app.use("/api/dashboard", require("./routes/dashboard"));
-
+app.use("/api/ml", require("./routes/ml"));
 // MongoDB connect
 // Environment-based configuration for different laptops/deployments
 const NODE_ENV = process.env.NODE_ENV || 'development';

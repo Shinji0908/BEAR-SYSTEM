@@ -19,6 +19,8 @@
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
+    "axiom": "^0.22.2",
+    "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "concurrently": "^9.2.0",
     "cors": "^2.8.5",

@@ -43,7 +43,21 @@ router.get("/stats", authenticateToken, requireDashboardAccess, async (req, res)
       createdAt: { $gte: sevenDaysAgo }
     });
     
-    const avgResponseTime = "3.2";
+    // ✅ Calculate actual average response time
+    // Response time = time from incident creation to "In Progress" status
+    const resolvedIncidentsWithTime = await Incident.find({
+      status: { $in: ["In Progress", "Resolved"] },
+      updatedAt: { $exists: true }
+    }).select("createdAt updatedAt");
+    
+    let avgResponseTime = "0";
+    if (resolvedIncidentsWithTime.length > 0) {
+      const totalResponseTime = resolvedIncidentsWithTime.reduce((sum, incident) => {
+        const responseTime = (new Date(incident.updatedAt) - new Date(incident.createdAt)) / (1000 * 60); // in minutes
+        return sum + responseTime;
+      }, 0);
+      avgResponseTime = (totalResponseTime / resolvedIncidentsWithTime.length).toFixed(1);
+    }
     
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

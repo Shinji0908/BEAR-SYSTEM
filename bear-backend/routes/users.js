@@ -111,6 +111,14 @@ router.post("/", authenticateToken, requireUserManagementAccess, async (req, res
       return res.status(400).json({ message: "Invalid email format" });
     }
 
+    // Validate password strength (at least 8 chars, 1 uppercase, 1 lowercase, 1 number)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ 
+        message: "Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, and one number" 
+      });
+    }
+
     // Validate role
     const validRoles = ["Resident", "Responder", "Admin"];
     if (!validRoles.includes(role)) {
@@ -141,8 +149,17 @@ router.post("/", authenticateToken, requireUserManagementAccess, async (req, res
       finalUsername = `${finalUsername}_${Date.now()}`;
     }
 
-    // Check contact uniqueness (if contact is provided)
+    // Check contact uniqueness and format (if contact is provided)
     if (contact && contact.trim()) {
+      // Validate Philippine mobile number format
+      // Accepts: 09XXXXXXXXX, +639XXXXXXXXX, 639XXXXXXXXX
+      const phoneRegex = /^(\+?63|0)?9\d{9}$/;
+      if (!phoneRegex.test(contact.trim().replace(/[-\s]/g, ''))) {
+        return res.status(400).json({ 
+          message: "Please provide a valid Philippine mobile number (e.g., 09XXXXXXXXX)" 
+        });
+      }
+      
       const existingUserByContact = await User.findOne({ contact: contact.trim() });
       if (existingUserByContact) {
         return res.status(400).json({ message: "Contact number already exists" });
@@ -289,6 +306,13 @@ router.put("/:id", authenticateToken, async (req, res) => {
     
     // Handle password update if provided
     if (password) {
+      // Validate password strength (at least 8 chars, 1 uppercase, 1 lowercase, 1 number)
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({ 
+          message: "Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, and one number" 
+        });
+      }
       const hashedPassword = await bcrypt.hash(password, 10);
       updateData.password = hashedPassword;
     }
@@ -371,6 +395,14 @@ router.put("/:id/password", authenticateToken, async (req, res) => {
       if (!isMatch) {
         return res.status(400).json({ message: "Current password is incorrect" });
       }
+    }
+
+    // Validate new password strength (at least 8 chars, 1 uppercase, 1 lowercase, 1 number)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({ 
+        message: "Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, and one number" 
+      });
     }
 
     // Hash new password

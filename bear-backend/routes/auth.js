@@ -67,8 +67,18 @@ router.post("/register", validateRegistration, handleValidationErrors, async (re
       return res.status(400).json({ message: "Username or email already exists" });
     }
 
-    // ✅ Check contact uniqueness (if contact is provided)
+    // ✅ Check contact uniqueness and format (if contact is provided)
     if (contact && contact.trim()) {
+      // Validate Philippine mobile number format
+      // Accepts: 09XXXXXXXXX, +639XXXXXXXXX, 639XXXXXXXXX
+      const phoneRegex = /^(\+?63|0)?9\d{9}$/;
+      if (!phoneRegex.test(contact.trim().replace(/[-\s]/g, ''))) {
+        console.log("❌ Invalid Philippine mobile number format:", contact.trim());
+        return res.status(400).json({ 
+          message: "Please provide a valid Philippine mobile number (e.g., 09XXXXXXXXX)" 
+        });
+      }
+      
       const existingUserByContact = await User.findOne({ contact: contact.trim() });
       if (existingUserByContact) {
         console.log("❌ Contact number already exists:", contact.trim());
